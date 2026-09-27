@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- Página de seguimiento de la boda de Ana y Juan -->
+<html lang="es">
+<head>
+  <!-- Codificación de caracteres para tildes y ñ -->
+  <meta charset="utf-8">
+  <!-- Ajusta el ancho al dispositivo (celular) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Evita que buscadores indexen la página -->
+  <meta name="robots" content="noindex, nofollow">
+  <!-- Título de la pestaña del navegador -->
+  <title>Boda Ana & Juan · Seguimiento</title>
+  <!-- Ícono de la pestaña: un anillo en SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💍</text></svg>">
+  <!-- Conexión anticipada a Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <!-- Fuentes del Save the Date: Cormorant Garamond (títulos) y Tenor Sans (etiquetas) -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Tenor+Sans&display=swap" rel="stylesheet">
+  <!-- Hoja de estilos propia -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ===== Pantalla de ingreso (se oculta al iniciar sesión) ===== -->
+  <section id="pantalla-login" class="login" hidden>
+    <!-- Tarjeta centrada del formulario -->
+    <div class="login-card">
+      <!-- Iniciales de los novios -->
+      <p class="login-monograma">A <span>&</span> J</p>
+      <!-- Título de la pantalla -->
+      <h1>Seguimiento de la boda</h1>
+      <!-- Instrucción breve -->
+      <p class="login-texto">Escribe tu correo y te enviamos un enlace para entrar.</p>
+      <!-- Formulario de correo -->
+      <form id="form-login">
+        <!-- Campo de correo electrónico -->
+        <input id="login-email" type="email" required placeholder="tucorreo@ejemplo.com" autocomplete="email">
+        <!-- Botón para pedir el enlace -->
+        <button type="submit" class="btn btn-primario">Enviarme el enlace</button>
+      </form>
+      <!-- Mensaje de resultado (enviado, error, etc.) -->
+      <p id="login-mensaje" class="login-mensaje" role="status"></p>
+    </div>
+  </section>
+
+  <!-- ===== Pantalla de acceso denegado (correo no autorizado) ===== -->
+  <section id="pantalla-denegado" class="login" hidden>
+    <!-- Tarjeta con el mensaje -->
+    <div class="login-card">
+      <!-- Título -->
+      <h1>Sin acceso</h1>
+      <!-- Explicación con el correo usado -->
+      <p class="login-texto">El correo <strong id="denegado-email"></strong> no está autorizado para ver esta página.</p>
+      <!-- Botón para salir e intentar con otro correo -->
+      <button id="btn-salir-denegado" class="btn">Usar otro correo</button>
+    </div>
+  </section>
+
+  <!-- ===== Aplicación principal ===== -->
+  <div id="app" hidden>
+    <!-- Aviso de modo demostración (solo si no hay Supabase configurado) -->
+    <div id="banner-demo" class="banner-demo" hidden>Modo demostración: los cambios se guardan solo en este navegador.</div>
+
+    <!-- Encabezado con título, cuenta regresiva y usuario -->
+    <header class="encabezado">
+      <!-- Bloque izquierdo: nombres y fecha -->
+      <div class="encabezado-titulo">
+        <!-- Nombres de los novios -->
+        <h1>Ana <span>&</span> Juan</h1>
+        <!-- Fecha de la boda (se llena desde config.js) -->
+        <p id="fecha-boda-texto"></p>
+      </div>
+      <!-- Bloque derecho: cuenta regresiva y usuario -->
+      <div class="encabezado-derecha">
+        <!-- Contador de días -->
+        <div class="contador"><span id="dias-faltan">–</span><small>días</small></div>
+        <!-- Correo del usuario y botón de salir -->
+        <div class="usuario"><span id="usuario-email"></span><button id="btn-salir" class="btn-link">Salir</button></div>
+      </div>
+    </header>
+
+    <!-- Barra de pestañas para cambiar de vista -->
+    <nav class="pestanas" role="tablist">
+      <!-- Cada botón indica en data-vista qué vista abre -->
+      <button class="pestana activa" data-vista="inicio" role="tab">Inicio</button>
+      <button class="pestana" data-vista="tablero" role="tab">Tablero</button>
+      <button class="pestana" data-vista="lista" role="tab">Lista</button>
+      <button class="pestana" data-vista="cronograma" role="tab">Cronograma</button>
+      <button class="pestana" data-vista="pagos" role="tab">Pagos</button>
+    </nav>
+
+    <!-- Barra de filtros (se muestra en Tablero, Lista y Cronograma) -->
+    <section id="filtros" class="filtros" hidden>
+      <!-- Búsqueda por texto -->
+      <input id="f-texto" type="search" placeholder="Buscar tarea, proveedor, nota…">
+      <!-- Filtro por grupo (opciones se llenan desde JS) -->
+      <select id="f-grupo"><option value="">Todos los grupos</option></select>
+      <!-- Filtro por responsable -->
+      <select id="f-responsable"><option value="">Todos</option><option>Ana</option><option>Juan</option><option>Ambos</option></select>
+      <!-- Filtro por estado -->
+      <select id="f-estado"><option value="">Todos los estados</option></select>
+      <!-- Filtro por semáforo -->
+      <select id="f-semaforo"><option value="">Todo el semáforo</option><option>Vencida</option><option>Próxima</option><option>A tiempo</option><option>Sin fecha</option><option>Listo</option></select>
+      <!-- Botón para limpiar todos los filtros -->
+      <button id="f-limpiar" class="btn-link">Limpiar</button>
+    </section>
+
+    <!-- Contenedor donde se dibuja la vista activa -->
+    <main id="vista" class="vista"></main>
+
+    <!-- Botón flotante para crear una tarea nueva -->
+    <button id="btn-nueva" class="btn-flotante" aria-label="Nueva tarea">＋ Nueva tarea</button>
+  </div>
+
+  <!-- ===== Ventana emergente (modal) para crear/editar tareas ===== -->
+  <dialog id="modal" class="modal">
+    <!-- Formulario de la tarea; method=dialog permite cerrarlo sin recargar -->
+    <form id="form-tarea" method="dialog">
+      <!-- Cabecera del modal -->
+      <header class="modal-cabecera">
+        <!-- Título dinámico: "Nueva tarea" o el código -->
+        <h2 id="modal-titulo">Tarea</h2>
+        <!-- Botón de cerrar -->
+        <button type="button" class="btn-link" data-cerrar aria-label="Cerrar">✕</button>
+      </header>
+      <!-- Cuerpo con los campos en cuadrícula -->
+      <div class="modal-cuerpo">
+        <!-- Nombre de la tarea (ocupa todo el ancho) -->
+        <label class="ancho">Tarea<input name="tarea" required></label>
+        <!-- Grupo (lista fija de config.js) -->
+        <label>Grupo<select name="grupo" required></select></label>
+        <!-- Categoría (texto libre con sugerencias) -->
+        <label>Categoría<input name="categoria" list="lista-categorias"></label>
+        <!-- Estado de la tarea -->
+        <label>Estado<select name="estado"></select></label>
+        <!-- Prioridad -->
+        <label>Prioridad<select name="prioridad"><option>Alta</option><option>Media</option><option>Baja</option></select></label>
+        <!-- Responsable -->
+        <label>Responsable<select name="responsable"><option>Ana</option><option>Juan</option><option>Ambos</option></select></label>
+        <!-- Líder (quién empuja la tarea) -->
+        <label>Líder<select name="lider"><option value="">Por definir</option><option>Ana</option><option>Juan</option></select></label>
+        <!-- Fecha límite -->
+        <label>Fecha límite<input name="fecha_limite" type="date"></label>
+        <!-- Depende de (códigos separados por coma) -->
+        <label>Depende de<input name="depende_de" placeholder="Ej.: A-02, G-01"></label>
+        <!-- Próximo paso (ancho completo) -->
+        <label class="ancho">Próximo paso<input name="proximo_paso"></label>
+        <!-- Proveedor -->
+        <label>Proveedor<input name="proveedor"></label>
+        <!-- Fecha del próximo pago -->
+        <label>Fecha próximo pago<input name="fecha_proximo_pago" type="date"></label>
+        <!-- Valor total en pesos -->
+        <label>Valor total (COP)<input name="valor_total" type="number" min="0" step="1000"></label>
+        <!-- Valor abonado en pesos -->
+        <label>Valor abonado (COP)<input name="valor_abonado" type="number" min="0" step="1000"></label>
+        <!-- Observaciones (ancho completo, varias líneas) -->
+        <label class="ancho">Observaciones<textarea name="observaciones" rows="3"></textarea></label>
+        <!-- Información de la última modificación -->
+        <p id="modal-meta" class="modal-meta ancho"></p>
+      </div>
+      <!-- Pie con botones de acción -->
+      <footer class="modal-pie">
+        <!-- Eliminar (solo al editar) -->
+        <button type="button" id="btn-eliminar" class="btn btn-peligro">Eliminar</button>
+        <!-- Confirmación de eliminación (oculta hasta pedirla) -->
+        <span id="confirmar-eliminar" hidden>¿Seguro? <button type="button" id="btn-eliminar-si" class="btn btn-peligro">Sí, eliminar</button></span>
+        <!-- Espaciador flexible -->
+        <span class="espacio"></span>
+        <!-- Cancelar -->
+        <button type="button" class="btn" data-cerrar>Cancelar</button>
+        <!-- Guardar -->
+        <button type="submit" class="btn btn-primario">Guardar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Lista de categorías sugeridas para el campo Categoría -->
+  <datalist id="lista-categorias"></datalist>
+  <!-- Aviso breve tipo "Guardado" -->
+  <div id="aviso" class="aviso" role="status"></div>
+
+  <!-- Librería oficial de Supabase (cliente JavaScript v2) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Configuración (URL y llave de Supabase, fecha, grupos) -->
+  <script src="config.js"></script>
+  <!-- Datos iniciales para el modo demostración -->
+  <script src="datos-iniciales.js"></script>
+  <!-- Lógica de la aplicación -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+/* ===== Estilos de la página de seguimiento de la boda ===== */
+
+/* Variables de color y tipografía (misma paleta del Save the Date) */
+:root {
+  --crema: #f4efe4;          /* Fondo general */
+  --papel: #fffdf8;          /* Fondo de tarjetas */
+  --tinta: #2b281a;          /* Texto principal */
+  --tinta-suave: #6b6553;    /* Texto secundario */
+  --linea: #e4dccb;          /* Bordes y separadores */
+  --salvia: #7c9578;         /* Acento verde */
+  --salvia-suave: #e3ebe0;   /* Fondo verde claro */
+  --bosque: #2c452c;         /* Verde oscuro (botones) */
+  --dorado: #c9a876;         /* Acento dorado */
+  --dorado-suave: #f3e8d2;   /* Fondo dorado claro */
+  --rojo: #a8473b;           /* Vencidas */
+  --rojo-suave: #f6e1dd;     /* Fondo de vencidas */
+  --ambar: #b7832f;          /* Próximas */
+  --ambar-suave: #f8ecd6;    /* Fondo de próximas */
+  --azul: #4f6f8a;           /* En proceso */
+  --azul-suave: #e2eaf1;     /* Fondo de en proceso */
+  --gris-suave: #ece8df;     /* Fondo neutro */
+  --titulo: 'Cormorant Garamond', Georgia, serif;                         /* Fuente de títulos */
+  --etiqueta: 'Tenor Sans', system-ui, sans-serif;                        /* Fuente de etiquetas */
+  --texto: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; /* Fuente de lectura */
+  --radio: 10px;             /* Radio de esquinas */
+  --sombra: 0 1px 2px rgba(43,40,26,.06), 0 4px 14px rgba(43,40,26,.06); /* Sombra suave */
+}
+
+/* Reinicio básico de cajas */
+*, *::before, *::after { box-sizing: border-box; }                        /* El borde cuenta dentro del ancho */
+[hidden] { display: none !important; }                                     /* Oculta de verdad lo marcado hidden */
+body { margin: 0; background: var(--crema); color: var(--tinta); font: 15px/1.45 var(--texto); } /* Fondo, color y letra base */
+button, input, select, textarea { font: inherit; color: inherit; }        /* Controles heredan la letra */
+
+/* ===== Botones ===== */
+.btn { border: 1px solid var(--linea); background: var(--papel); padding: 8px 14px; border-radius: 8px; cursor: pointer; } /* Botón base */
+.btn:hover { border-color: var(--salvia); }                                /* Resalta al pasar el mouse */
+.btn-primario { background: var(--bosque); color: #fff; border-color: var(--bosque); } /* Botón principal verde */
+.btn-primario:hover { background: #22381f; }                               /* Más oscuro al pasar el mouse */
+.btn-peligro { color: var(--rojo); border-color: #e3c3bd; }                /* Botón de eliminar */
+.btn-link { border: 0; background: none; color: var(--tinta-suave); cursor: pointer; padding: 4px 6px; text-decoration: underline; } /* Botón tipo enlace */
+.btn-flotante { position: fixed; right: 18px; bottom: 18px; z-index: 20; background: var(--bosque); color: #fff; border: 0; border-radius: 999px; padding: 12px 20px; box-shadow: var(--sombra); cursor: pointer; font-family: var(--etiqueta); letter-spacing: .03em; } /* Botón flotante "Nueva tarea" */
+
+/* ===== Pantallas de ingreso / sin acceso ===== */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; } /* Centra la tarjeta */
+.login-card { background: var(--papel); border: 1px solid var(--linea); border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 380px; text-align: center; box-shadow: var(--sombra); } /* Tarjeta de ingreso */
+.login-monograma { font-family: var(--titulo); font-size: 40px; margin: 0; color: var(--bosque); } /* Iniciales A & J */
+.login-monograma span, .encabezado h1 span { color: var(--dorado); font-style: italic; } /* El "&" en dorado */
+.login h1 { font-family: var(--titulo); font-weight: 500; font-size: 28px; margin: 6px 0; } /* Título de la tarjeta */
+.login-texto { color: var(--tinta-suave); }                                 /* Texto explicativo */
+#form-login { display: grid; gap: 10px; margin-top: 16px; }                 /* Formulario en columna */
+#form-login input { padding: 10px 12px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; } /* Campo de correo */
+.login-mensaje { min-height: 1.4em; color: var(--bosque); }                 /* Mensaje de resultado */
+
+/* ===== Encabezado ===== */
+.banner-demo { background: var(--dorado-suave); color: #6e5424; text-align: center; padding: 6px 12px; font-size: 13px; } /* Aviso de demostración */
+.encabezado { display: flex; justify-content: space-between; align-items: center; gap: 16px; max-width: 1240px; margin: 0 auto; padding: 18px 16px 8px; } /* Barra superior */
+.encabezado h1 { font-family: var(--titulo); font-weight: 500; font-size: 34px; margin: 0; line-height: 1; } /* Nombres */
+.encabezado p { margin: 4px 0 0; font-family: var(--etiqueta); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--tinta-suave); } /* Fecha */
+.encabezado-derecha { display: flex; align-items: center; gap: 16px; }     /* Contador y usuario en fila */
+.contador { text-align: center; line-height: 1; }                           /* Caja del contador */
+.contador span { display: block; font-family: var(--titulo); font-size: 38px; font-weight: 600; color: var(--bosque); } /* Número de días */
+.contador small { font-family: var(--etiqueta); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--tinta-suave); } /* Palabra "días" */
+.usuario { display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; color: var(--tinta-suave); } /* Correo y salir */
+
+/* ===== Pestañas ===== */
+.pestanas { display: flex; gap: 4px; max-width: 1240px; margin: 8px auto 0; padding: 0 16px; border-bottom: 1px solid var(--linea); overflow-x: auto; } /* Fila de pestañas */
+.pestana { border: 0; background: none; padding: 10px 14px; cursor: pointer; font-family: var(--etiqueta); font-size: 13px; letter-spacing: .06em; color: var(--tinta-suave); border-bottom: 2px solid transparent; white-space: nowrap; } /* Pestaña */
+.pestana.activa { color: var(--tinta); border-bottom-color: var(--dorado); } /* Pestaña seleccionada */
+
+/* ===== Filtros ===== */
+.filtros { display: flex; flex-wrap: wrap; gap: 8px; max-width: 1240px; margin: 12px auto 0; padding: 0 16px; } /* Barra de filtros */
+.filtros input, .filtros select { padding: 7px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--papel); min-width: 0; } /* Controles de filtro */
+.filtros input { flex: 1 1 220px; }                                        /* La búsqueda ocupa el espacio libre */
+
+/* ===== Contenedor de vistas ===== */
+.vista { max-width: 1240px; margin: 0 auto; padding: 16px 16px 90px; }     /* Área principal con espacio para el botón flotante */
+.seccion-titulo { font-family: var(--titulo); font-weight: 500; font-size: 24px; margin: 22px 0 10px; } /* Títulos de sección */
+.vacio { color: var(--tinta-suave); font-style: italic; padding: 8px 0; }  /* Texto cuando no hay datos */
+
+/* ===== Inicio: indicadores ===== */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; } /* Cuadrícula de indicadores */
+.kpi { background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 14px 16px; } /* Tarjeta de indicador */
+.kpi b { display: block; font-family: var(--titulo); font-size: 34px; font-weight: 600; line-height: 1.05; } /* Valor */
+.kpi span { font-family: var(--etiqueta); font-size: 12px; letter-spacing: .06em; color: var(--tinta-suave); } /* Etiqueta */
+.kpi.alerta b { color: var(--rojo); }                                       /* Vencidas en rojo */
+.kpi.proximo b { color: var(--ambar); }                                     /* Próximas en ámbar */
+.kpi.ok b { color: var(--bosque); }                                         /* Avance en verde */
+.dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } /* Dos columnas en escritorio */
+
+/* ===== Inicio: avance por grupo ===== */
+.grupo-avance { display: grid; grid-template-columns: minmax(0, 1fr) 70px; gap: 4px 10px; align-items: center; margin-bottom: 10px; cursor: pointer; } /* Fila de avance */
+.grupo-avance .nombre { font-size: 14px; }                                  /* Nombre del grupo */
+.grupo-avance .cifra { text-align: right; font-size: 12px; color: var(--tinta-suave); } /* "3/7" */
+.barra { grid-column: 1 / -1; display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--gris-suave); } /* Barra de progreso */
+.barra i { display: block; height: 100%; }                                  /* Segmento de la barra */
+.barra .b-listo { background: var(--salvia); }                              /* Parte lista */
+.barra .b-proceso { background: var(--azul); opacity: .7; }                 /* Parte en proceso */
+.barra .b-espera { background: var(--dorado); }                             /* Parte en espera */
+.barra .b-vencida { background: var(--rojo); opacity: .75; }                /* Parte vencida */
+.leyenda { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--tinta-suave); margin-bottom: 12px; } /* Leyenda de colores */
+.leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; } /* Cuadro de color */
+
+/* ===== Filas compactas (vencidas, próximas, actividad) ===== */
+.fila { display: flex; gap: 10px; align-items: baseline; padding: 9px 12px; background: var(--papel); border: 1px solid var(--linea); border-radius: 8px; margin-bottom: 6px; cursor: pointer; } /* Fila clicable */
+.fila:hover { border-color: var(--salvia); }                                /* Resalta al pasar el mouse */
+.fila .texto { flex: 1; min-width: 0; }                                     /* Texto flexible */
+.fila .fecha { font-size: 12px; color: var(--tinta-suave); white-space: nowrap; } /* Fecha a la derecha */
+.actividad { font-size: 13px; padding: 8px 0; border-bottom: 1px dashed var(--linea); } /* Evento del historial */
+.actividad small { color: var(--tinta-suave); }                             /* Fecha del evento */
+
+/* ===== Etiquetas (chips) ===== */
+.codigo { font-family: var(--etiqueta); font-size: 11px; color: var(--tinta-suave); letter-spacing: .04em; } /* Código A-01 */
+.chip { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--gris-suave); color: var(--tinta-suave); white-space: nowrap; } /* Etiqueta base */
+.chip.vencida { background: var(--rojo-suave); color: var(--rojo); }       /* Vencida */
+.chip.proxima { background: var(--ambar-suave); color: #8a5f1c; }          /* Próxima */
+.chip.a-tiempo { background: var(--salvia-suave); color: var(--bosque); }  /* A tiempo */
+.chip.listo { background: var(--salvia); color: #fff; }                    /* Listo */
+.chip.bloqueada { background: var(--dorado-suave); color: #6e5424; }       /* Bloqueada por otra */
+.chip.alta { background: #f1dcd6; color: #8b3a2f; }                        /* Prioridad alta */
+.estado-no-iniciado { background: var(--gris-suave); color: var(--tinta-suave); } /* Estado No iniciado */
+.estado-en-proceso { background: var(--azul-suave); color: var(--azul); }  /* Estado En proceso */
+.estado-en-espera { background: var(--dorado-suave); color: #6e5424; }     /* Estado En espera */
+.estado-listo { background: var(--salvia); color: #fff; }                  /* Estado Listo */
+
+/* ===== Tablero (Kanban) ===== */
+.tablero { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; } /* Cuatro columnas */
+.columna { background: var(--gris-suave); border-radius: var(--radio); padding: 10px; min-height: 120px; } /* Columna de estado */
+.columna-tarjetas { max-height: 70vh; overflow-y: auto; padding-right: 2px; } /* Cada columna se desplaza por dentro */
+.columna.sobre { outline: 2px dashed var(--salvia); }                       /* Resalta al arrastrar encima */
+.columna h3 { display: flex; justify-content: space-between; margin: 2px 4px 10px; font-family: var(--etiqueta); font-weight: 400; font-size: 13px; letter-spacing: .06em; } /* Título de columna */
+.tarjeta { background: var(--papel); border: 1px solid var(--linea); border-left: 4px solid var(--linea); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; box-shadow: 0 1px 1px rgba(0,0,0,.03); } /* Tarjeta de tarea */
+.tarjeta:hover { border-color: var(--salvia); }                             /* Resalta al pasar el mouse */
+.tarjeta.arrastrando { opacity: .45; }                                      /* Mientras se arrastra */
+.tarjeta.sem-vencida { border-left-color: var(--rojo); }                    /* Borde rojo si vencida */
+.tarjeta.sem-proxima { border-left-color: var(--ambar); }                   /* Borde ámbar si próxima */
+.tarjeta.sem-a-tiempo { border-left-color: var(--salvia-suave); }           /* Borde verde claro si a tiempo */
+.tarjeta.sem-listo { border-left-color: var(--salvia); }                    /* Borde verde si lista */
+.tarjeta .titulo { font-weight: 600; margin: 2px 0 6px; }                   /* Nombre de la tarea */
+.tarjeta .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } /* Etiquetas de la tarjeta */
+.tarjeta .paso { font-size: 12px; color: var(--tinta-suave); margin-top: 6px; } /* Próximo paso */
+.mover { margin-top: 8px; display: none; }                                  /* Selector de estado (solo celular) */
+.mover select { width: 100%; padding: 5px; border: 1px solid var(--linea); border-radius: 6px; background: #fff; font-size: 13px; } /* Estilo del selector */
+
+/* ===== Lista (tabla) ===== */
+.grupo-bloque { margin-bottom: 18px; }                                      /* Bloque por grupo */
+.grupo-bloque h3 { font-family: var(--titulo); font-weight: 500; font-size: 21px; margin: 16px 0 6px; } /* Título del grupo */
+.grupo-bloque h3 small { font-family: var(--texto); font-size: 12px; color: var(--tinta-suave); margin-left: 6px; } /* Conteo del grupo */
+table.tabla { width: 100%; border-collapse: collapse; background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio); overflow: hidden; } /* Tabla */
+.tabla th { text-align: left; font-family: var(--etiqueta); font-weight: 400; font-size: 11px; letter-spacing: .06em; color: var(--tinta-suave); background: #faf6ee; padding: 8px 10px; border-bottom: 1px solid var(--linea); } /* Encabezados */
+.tabla td { padding: 9px 10px; border-bottom: 1px solid var(--linea); vertical-align: top; font-size: 14px; } /* Celdas */
+.tabla tbody tr { cursor: pointer; }                                        /* Filas clicables */
+.tabla tbody tr:hover { background: #fbf8f1; }                              /* Resalta la fila */
+.tabla .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; } /* Números alineados */
+.tabla tfoot td { font-weight: 600; background: #faf6ee; }                  /* Fila de totales */
+.sub { display: block; font-size: 12px; color: var(--tinta-suave); }        /* Texto secundario dentro de celda */
+
+/* ===== Cronograma ===== */
+.mes { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-top: 1px solid var(--linea); } /* Fila de mes */
+.mes h3 { font-family: var(--titulo); font-weight: 500; font-size: 22px; margin: 0; text-transform: capitalize; } /* Nombre del mes */
+.mes h3 small { display: block; font-family: var(--texto); font-size: 12px; color: var(--tinta-suave); } /* Conteo del mes */
+.mes.actual h3 { color: var(--bosque); }                                    /* Mes en curso resaltado */
+.mes .fila .dia { font-family: var(--titulo); font-size: 20px; font-weight: 600; width: 28px; text-align: center; } /* Número del día */
+.hito { background: var(--dorado-suave); border: 1px solid var(--dorado); border-radius: 8px; padding: 10px 12px; font-family: var(--titulo); font-size: 20px; margin-bottom: 6px; } /* Día de la boda */
+
+/* ===== Modal ===== */
+.modal { border: 0; border-radius: 14px; padding: 0; width: min(720px, calc(100vw - 24px)); max-height: calc(100vh - 24px); background: var(--papel); color: var(--tinta); box-shadow: 0 20px 60px rgba(0,0,0,.25); } /* Ventana */
+.modal::backdrop { background: rgba(25,21,16,.45); }                        /* Fondo oscurecido */
+.modal-cabecera { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--linea); } /* Cabecera */
+.modal-cabecera h2 { font-family: var(--titulo); font-weight: 500; font-size: 24px; margin: 0; } /* Título */
+.modal-cuerpo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; padding: 16px 18px; } /* Campos en dos columnas */
+.modal-cuerpo label { display: grid; gap: 4px; font-family: var(--etiqueta); font-size: 11px; letter-spacing: .06em; color: var(--tinta-suave); } /* Etiqueta de campo */
+.modal-cuerpo input, .modal-cuerpo select, .modal-cuerpo textarea { font-family: var(--texto); font-size: 14px; letter-spacing: 0; color: var(--tinta); padding: 8px 10px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; width: 100%; } /* Controles */
+.modal-cuerpo .ancho { grid-column: 1 / -1; }                               /* Campos de ancho completo */
+.modal-meta { font-size: 12px; color: var(--tinta-suave); margin: 0; }      /* Última modificación */
+.modal-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--linea); } /* Botones */
+.espacio { flex: 1; }                                                       /* Empuja botones a la derecha */
+
+/* ===== Aviso breve ===== */
+.aviso { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--tinta); color: #fff; padding: 9px 16px; border-radius: 8px; opacity: 0; pointer-events: none; transition: .25s; z-index: 30; } /* Oculto por defecto */
+.aviso.visible { opacity: 1; transform: translateX(-50%); }                 /* Visible */
+
+/* ===== Celular (hasta 760 px) ===== */
+@media (max-width: 760px) {
+  .encabezado { padding-top: 14px; }                                        /* Menos espacio arriba */
+  .encabezado h1 { font-size: 28px; }                                       /* Nombres más pequeños */
+  .usuario span { display: none; }                                          /* Oculta el correo */
+  .dos-columnas { grid-template-columns: 1fr; }                             /* Una sola columna */
+  .tablero { grid-template-columns: 1fr; }                                  /* Columnas apiladas */
+  .columna-tarjetas { max-height: none; overflow: visible; }               /* En celular no hay desplazamiento interno */
+  .mover { display: block; }                                                /* Muestra el selector de estado */
+  .mes { grid-template-columns: 1fr; gap: 6px; }                           /* Mes arriba de sus tareas */
+  .fila { flex-wrap: wrap; }                                                /* Las etiquetas bajan de línea */
+  .fila .texto { flex: 1 1 calc(100% - 60px); }                             /* El texto ocupa casi todo el ancho */
+  .modal-cuerpo { grid-template-columns: 1fr; }                             /* Campos en una columna */
+  .tabla thead { display: none; }                                           /* Sin encabezados */
+  .tabla, .tabla tbody, .tabla tr, .tabla td, .tabla tfoot { display: block; width: 100%; } /* Tabla como tarjetas */
+  .tabla tr { border-bottom: 1px solid var(--linea); padding: 8px 4px; }    /* Separación entre tarjetas */
+  .tabla td { border: 0; padding: 3px 8px; }                                /* Celdas compactas */
+  .tabla td[data-l]::before { content: attr(data-l) ": "; color: var(--tinta-suave); font-size: 12px; } /* Muestra el nombre del campo */
+  .tabla .num { text-align: left; }                                         /* Números a la izquierda */
+  .btn-flotante { padding: 12px 16px; }                                     /* Botón flotante más compacto */
+}
