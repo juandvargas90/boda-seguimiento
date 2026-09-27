@@ -549,7 +549,11 @@
     const msg = $("#login-mensaje");                                  // Mensaje de resultado
     msg.textContent = "Enviando…";                                    // Estado intermedio
     const { error } = await S.cli.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } }); // Envía el enlace mágico
-    msg.textContent = error ? "No se pudo enviar: " + error.message : "Listo. Revisa tu correo y abre el enlace desde este mismo dispositivo."; // Resultado
+    const limite = error && /rate limit/i.test(error.message);          // ¿Se superó el límite de correos por hora?
+    msg.textContent = limite                                          // Mensaje según el resultado
+      ? "Se enviaron muchos enlaces en poco tiempo. Espera una hora e inténtalo de nuevo (o usa el último enlace que te llegó)." // Límite de envío
+      : error ? "No se pudo enviar: " + error.message                 // Otro error
+      : "Listo. Revisa tu correo (también en no deseado) y abre el enlace en este mismo navegador."; // Envío correcto
   });                                                                 // Fin del formulario
 
   const salir = async () => { if (S.cli) await S.cli.auth.signOut(); location.reload(); }; // Cierra sesión
