@@ -23,7 +23,7 @@ create table if not exists public.tareas (            -- Crea la tabla de tareas
                      check (prioridad in ('Alta','Media','Baja')),      -- Solo acepta estos tres valores
   fecha_limite       date,                            -- Fecha límite (puede quedar vacía)
   estado             text not null default 'No iniciado'                -- Estado, por defecto No iniciado
-                     check (estado in ('No iniciado','En proceso','En espera','Listo')), -- Estados válidos
+                     check (estado in ('No iniciado','En proceso','Terminado')), -- Estados válidos
   proveedor          text,                            -- Proveedor asociado
   valor_total        numeric(14,0) check (valor_total >= 0),            -- Valor total en pesos (sin decimales)
   valor_abonado      numeric(14,0) check (valor_abonado >= 0),          -- Valor abonado en pesos

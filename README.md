@@ -1,6 +1,6 @@
 # Seguimiento de la boda · Ana & Juan
 
-Página privada para que Ana y Juan lleven juntos las tareas de la boda (30 de enero de 2027): pendientes, en proceso, en espera y listas, por grupo y categoría, con cronograma y control de pagos.
+Página privada para que Ana y Juan lleven juntos las tareas de la boda (30 de enero de 2027): no iniciadas, en proceso y terminadas, por grupo y categoría, con cronograma y control de pagos.
 
 - **Página:** GitHub Pages (este repositorio).
 - **Datos:** Supabase (base de datos PostgreSQL con inicio de sesión por correo).

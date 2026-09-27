@@ -4,7 +4,7 @@ window.CONFIG = {                                         // Objeto global que l
   SUPABASE_ANON_KEY: "",                                  // Llave pública "anon" de Supabase (es pública por diseño)
   FECHA_BODA: "2027-01-30",                               // Fecha de la boda (AAAA-MM-DD) para la cuenta regresiva
   DIAS_ALERTA: 15,                                        // Días de anticipación para marcar una tarea como "Próxima"
-  ESTADOS: ["No iniciado", "En proceso", "En espera", "Listo"], // Estados posibles, en el orden del tablero
+  ESTADOS: ["No iniciado", "En proceso", "Terminado"],         // Estados posibles, en el orden del tablero
   GRUPOS: {                                               // Grupos de tareas: la letra es el prefijo del código
     A: "Vestuario y arreglo – Ana",                       // Grupo A
     B: "Vestuario y arreglo – Juan",                      // Grupo B

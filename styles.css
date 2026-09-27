@@ -96,7 +96,6 @@ button, input, select, textarea { font: inherit; color: inherit; }        /* Con
 .barra i { display: block; height: 100%; }                                  /* Segmento de la barra */
 .barra .b-listo { background: var(--salvia); }                              /* Parte lista */
 .barra .b-proceso { background: var(--azul); opacity: .7; }                 /* Parte en proceso */
-.barra .b-espera { background: var(--dorado); }                             /* Parte en espera */
 .barra .b-vencida { background: var(--rojo); opacity: .75; }                /* Parte vencida */
 .leyenda { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--tinta-suave); margin-bottom: 12px; } /* Leyenda de colores */
 .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; } /* Cuadro de color */
@@ -115,16 +114,15 @@ button, input, select, textarea { font: inherit; color: inherit; }        /* Con
 .chip.vencida { background: var(--rojo-suave); color: var(--rojo); }       /* Vencida */
 .chip.proxima { background: var(--ambar-suave); color: #8a5f1c; }          /* Próxima */
 .chip.a-tiempo { background: var(--salvia-suave); color: var(--bosque); }  /* A tiempo */
-.chip.listo { background: var(--salvia); color: #fff; }                    /* Listo */
+.chip.terminado { background: var(--salvia); color: #fff; }                /* Terminado */
 .chip.bloqueada { background: var(--dorado-suave); color: #6e5424; }       /* Bloqueada por otra */
 .chip.alta { background: #f1dcd6; color: #8b3a2f; }                        /* Prioridad alta */
 .estado-no-iniciado { background: var(--gris-suave); color: var(--tinta-suave); } /* Estado No iniciado */
 .estado-en-proceso { background: var(--azul-suave); color: var(--azul); }  /* Estado En proceso */
-.estado-en-espera { background: var(--dorado-suave); color: #6e5424; }     /* Estado En espera */
-.estado-listo { background: var(--salvia); color: #fff; }                  /* Estado Listo */
+.estado-terminado { background: var(--salvia); color: #fff; }              /* Estado Terminado */
 
 /* ===== Tablero (Kanban) ===== */
-.tablero { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; } /* Cuatro columnas */
+.tablero { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; } /* Una columna por estado */
 .columna { background: var(--gris-suave); border-radius: var(--radio); padding: 10px; min-height: 120px; } /* Columna de estado */
 .columna-tarjetas { max-height: 70vh; overflow-y: auto; padding-right: 2px; } /* Cada columna se desplaza por dentro */
 .columna.sobre { outline: 2px dashed var(--salvia); }                       /* Resalta al arrastrar encima */
@@ -135,7 +133,7 @@ button, input, select, textarea { font: inherit; color: inherit; }        /* Con
 .tarjeta.sem-vencida { border-left-color: var(--rojo); }                    /* Borde rojo si vencida */
 .tarjeta.sem-proxima { border-left-color: var(--ambar); }                   /* Borde ámbar si próxima */
 .tarjeta.sem-a-tiempo { border-left-color: var(--salvia-suave); }           /* Borde verde claro si a tiempo */
-.tarjeta.sem-listo { border-left-color: var(--salvia); }                    /* Borde verde si lista */
+.tarjeta.sem-terminado { border-left-color: var(--salvia); }                    /* Borde verde si lista */
 .tarjeta .titulo { font-weight: 600; margin: 2px 0 6px; }                   /* Nombre de la tarea */
 .tarjeta .meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } /* Etiquetas de la tarjeta */
 .tarjeta .paso { font-size: 12px; color: var(--tinta-suave); margin-top: 6px; } /* Próximo paso */

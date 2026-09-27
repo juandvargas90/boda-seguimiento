@@ -36,7 +36,7 @@
   const vacioANulo = (v) => (v === "" || v === undefined ? null : v);                           // Convierte vacío en null
 
   function semaforo(t) {                                              // Calcula el semáforo de una tarea
-    if (t.estado === "Listo") return "Listo";                         // Las listas no se evalúan
+    if (t.estado === "Terminado") return "Terminado";                 // Las terminadas no se evalúan
     if (!t.fecha_limite) return "Sin fecha";                          // Sin fecha límite
     const d = dias(t.fecha_limite);                                   // Días que faltan
     if (d < 0) return "Vencida";                                      // Fecha pasada
@@ -47,10 +47,10 @@
   const saldo = (t) => (t.valor_total === null || t.valor_total === undefined) ? null : Math.max(0, Number(t.valor_total) - Number(t.valor_abonado || 0)); // Saldo pendiente
 
   function bloqueadaPor(t) {                                          // Devuelve las dependencias que aún no están listas
-    if (!t.depende_de || t.estado === "Listo") return [];             // Sin dependencias o ya lista: nada
+    if (!t.depende_de || t.estado === "Terminado") return [];         // Sin dependencias o ya terminada: nada
     return t.depende_de.split(/[,\s]+/).filter(Boolean)               // Separa los códigos
       .map((c) => c.toUpperCase())                                    // Los pasa a mayúsculas
-      .filter((c) => { const p = S.tareas.find((x) => x.codigo === c); return p && p.estado !== "Listo"; }); // Deja solo las pendientes
+      .filter((c) => { const p = S.tareas.find((x) => x.codigo === c); return p && p.estado !== "Terminado"; }); // Deja solo las pendientes
   }                                                                   // Fin de bloqueadaPor
 
   function nombreDe(email) {                                          // Nombre de una persona a partir de su correo
@@ -186,7 +186,7 @@
   const chipEstado = (e) => `<span class="chip estado-${clase(e)}">${esc(e)}</span>`;        // Etiqueta de estado
   function chipFecha(t) {                                             // Etiqueta de fecha con color de semáforo
     const s = semaforo(t);                                            // Semáforo
-    if (s === "Listo") return `<span class="chip listo">✓ ${esc(fmtFecha(t.fecha_limite))}</span>`; // Lista
+    if (s === "Terminado") return `<span class="chip terminado">✓ ${esc(fmtFecha(t.fecha_limite))}</span>`; // Terminada
     if (s === "Sin fecha") return `<span class="chip">Sin fecha</span>`;                          // Sin fecha
     const d = dias(t.fecha_limite);                                   // Días restantes
     const extra = s === "Vencida" ? ` · hace ${-d} d` : (d === 0 ? " · hoy" : ` · en ${d} d`);  // Texto complementario
@@ -206,7 +206,7 @@
   function vistaInicio() {                                            // Resumen general
     const T = S.tareas;                                               // Todas las tareas
     const n = (e) => T.filter((t) => t.estado === e).length;          // Conteo por estado
-    const listos = n("Listo");                                        // Tareas listas
+    const listos = n("Terminado");                                    // Tareas terminadas
     const venc = T.filter((t) => semaforo(t) === "Vencida").sort((a, b) => a.fecha_limite.localeCompare(b.fecha_limite)); // Vencidas, más antiguas primero
     const prox = T.filter((t) => semaforo(t) === "Próxima").sort((a, b) => a.fecha_limite.localeCompare(b.fecha_limite)); // Próximas, más cercanas primero
     const saldoTotal = T.reduce((s, t) => s + (saldo(t) || 0), 0);    // Saldo pendiente total
@@ -214,14 +214,13 @@
     let h = `<div class="kpis">` +                                    // Indicadores
       `<div class="kpi ok"><b>${avance}%</b><span>Avance (${listos} de ${T.length})</span></div>` + // Avance
       `<div class="kpi"><b>${n("En proceso")}</b><span>En proceso</span></div>` +                  // En proceso
-      `<div class="kpi"><b>${n("En espera")}</b><span>En espera</span></div>` +                    // En espera
       `<div class="kpi alerta"><b>${venc.length}</b><span>Vencidas</span></div>` +                 // Vencidas
       `<div class="kpi proximo"><b>${prox.length}</b><span>Vencen en ≤${C.DIAS_ALERTA} días</span></div>` + // Próximas
       `<div class="kpi"><b style="font-size:26px">${fmtCOP(saldoTotal)}</b><span>Saldo por pagar</span></div>` + // Saldo
       `</div>`;                                                       // Fin de indicadores
     h += `<div class="dos-columnas"><div>`;                           // Columna izquierda
     h += `<h2 class="seccion-titulo">Avance por grupo</h2>`;          // Título
-    h += `<div class="leyenda"><span><i style="background:var(--salvia)"></i>Listo</span><span><i style="background:var(--azul);opacity:.7"></i>En proceso</span><span><i style="background:var(--dorado)"></i>En espera</span></div>`; // Leyenda
+    h += `<div class="leyenda"><span><i style="background:var(--salvia)"></i>Terminado</span><span><i style="background:var(--azul);opacity:.7"></i>En proceso</span></div>`; // Leyenda
     gruposOrdenados(T).forEach((g) => {                               // Por cada grupo
       const G = T.filter((t) => t.grupo === g);                       // Tareas del grupo
       if (!G.length) return;                                          // Omite grupos vacíos
@@ -229,8 +228,8 @@
       const v = G.filter((t) => semaforo(t) === "Vencida").length;    // Vencidas del grupo
       h += `<div class="grupo-avance" data-grupo="${esc(g)}" title="Ver en la lista">` + // Fila clicable
         `<span class="nombre">${esc(g)}${v ? ` <span class="chip vencida">${v} vencida${v > 1 ? "s" : ""}</span>` : ""}</span>` + // Nombre y vencidas
-        `<span class="cifra">${G.filter((t) => t.estado === "Listo").length}/${G.length}</span>` + // Listas/total
-        `<div class="barra"><i class="b-listo" style="width:${pct("Listo")}%"></i><i class="b-proceso" style="width:${pct("En proceso")}%"></i><i class="b-espera" style="width:${pct("En espera")}%"></i></div></div>`; // Barra
+        `<span class="cifra">${G.filter((t) => t.estado === "Terminado").length}/${G.length}</span>` + // Listas/total
+        `<div class="barra"><i class="b-listo" style="width:${pct("Terminado")}%"></i><i class="b-proceso" style="width:${pct("En proceso")}%"></i></div></div>`; // Barra
     });                                                               // Fin de grupos
     h += `</div><div>`;                                               // Columna derecha
     h += `<h2 class="seccion-titulo">Vencidas</h2>`;                  // Título
@@ -257,7 +256,7 @@
   // ---------- Vista: Tablero ----------
   function vistaTablero() {                                           // Columnas por estado
     const lista = filtradas();                                        // Tareas filtradas
-    const orden = { "Vencida": 0, "Próxima": 1, "A tiempo": 2, "Sin fecha": 3, "Listo": 4 }; // Prioridad visual del semáforo
+    const orden = { "Vencida": 0, "Próxima": 1, "A tiempo": 2, "Sin fecha": 3, "Terminado": 4 }; // Prioridad visual del semáforo
     return `<div class="tablero">` + C.ESTADOS.map((e) => {           // Una columna por estado
       const col = lista.filter((t) => t.estado === e)                 // Tareas de ese estado
         .sort((a, b) => orden[semaforo(a)] - orden[semaforo(b)] || String(a.fecha_limite || "9").localeCompare(String(b.fecha_limite || "9"))); // Urgentes primero
@@ -284,7 +283,7 @@
     gruposOrdenados(lista).forEach((g) => {                           // Por grupo
       const G = lista.filter((t) => t.grupo === g).sort((a, b) => a.codigo.localeCompare(b.codigo)); // Tareas del grupo ordenadas
       if (!G.length) return;                                          // Omite vacíos
-      h += `<div class="grupo-bloque"><h3>${esc(g)}<small>${G.filter((t) => t.estado === "Listo").length}/${G.length} listas</small></h3>`; // Título del grupo
+      h += `<div class="grupo-bloque"><h3>${esc(g)}<small>${G.filter((t) => t.estado === "Terminado").length}/${G.length} terminadas</small></h3>`; // Título del grupo
       h += `<table class="tabla"><thead><tr><th>Código</th><th>Tarea</th><th>Responsable</th><th>Fecha límite</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody>`; // Encabezados
       h += G.map((t) => `<tr data-id="${t.id}">` +                    // Fila clicable
         `<td class="codigo">${esc(t.codigo)}</td>` +                  // Código
