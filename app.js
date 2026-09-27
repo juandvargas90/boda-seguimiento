@@ -547,7 +547,7 @@
     $("#form-login").hidden = mostrar;                                // Oculta o muestra el formulario de correo
     $("#form-codigo").hidden = !mostrar;                              // Muestra u oculta el formulario del código
     $("#login-instruccion").textContent = mostrar                     // Instrucción según el paso
-      ? `Escribe el código que llegó a ${$("#login-email").value.trim() || "tu correo"} (revisa también correo no deseado).` // Paso 2
+      ? `Te enviamos un correo a ${$("#login-email").value.trim() || "tu correo"} (revisa también no deseado). Si trae un botón o enlace, ábrelo en este mismo navegador; si trae un código, escríbelo aquí.` // Paso 2: sirve para enlace o código
       : "Escribe tu correo y te enviamos un código para entrar.";     // Paso 1
     if (mostrar) $("#login-codigo").focus();                          // Pone el cursor en el código
   }                                                                   // Fin de pasoCodigo
