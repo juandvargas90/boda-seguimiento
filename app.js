@@ -4,7 +4,9 @@
 
   // ---------- Configuración y estado ----------
   const C = window.CONFIG;                                            // Configuración definida en config.js
-  const DEMO = !C.SUPABASE_URL || !C.SUPABASE_ANON_KEY;               // Si falta Supabase, se trabaja en modo demostración
+  const LOCAL = ["localhost", "127.0.0.1", ""].includes(location.hostname); // ¿Se abrió en el computador (pruebas) y no en internet?
+  const SIN_CONFIG = !C.SUPABASE_URL || !C.SUPABASE_ANON_KEY;         // ¿Falta la conexión a Supabase?
+  const DEMO = SIN_CONFIG && LOCAL;                                   // Modo demostración solo en pruebas locales, nunca en la página publicada
   const $ = (s) => document.querySelector(s);                         // Atajo para buscar un elemento
   const S = {                                                         // Estado de la aplicación
     tareas: [],                                                       // Lista de tareas cargadas
@@ -563,6 +565,11 @@
       $("#btn-salir").hidden = true;                                  // Oculta Salir
       return mostrarApp();                                            // Entra directo
     }                                                                 // Fin del modo demo
+    try { localStorage.removeItem("boda-seguimiento-demo"); } catch (e) { /* sin almacenamiento */ } // Borra datos de prueba viejos de este navegador
+    if (SIN_CONFIG || !window.supabase) {                             // Publicada pero sin conexión (versión vieja en caché o fallo de red)
+      document.body.innerHTML = `<div class="login"><div class="login-card"><h1>Actualiza la página</h1><p class="login-texto">Tu navegador cargó una versión vieja o no pudo conectarse. Presiona <b>Ctrl + F5</b> (en celular, cierra y vuelve a abrir la página).</p></div></div>`; // Mensaje claro en vez de modo demostración
+      return;                                                         // No continúa
+    }                                                                 // Fin de la verificación
     S.cli = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY); // Crea el cliente de Supabase
     S.api = apiSupabase(S.cli);                                       // Capa de datos real
     S.cli.auth.onAuthStateChange((evento, sesion) => { if (evento === "SIGNED_IN") entrar(sesion); }); // Entra al abrir el enlace
