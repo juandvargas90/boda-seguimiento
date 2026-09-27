@@ -1,7 +1,7 @@
 // Configuración de la página de seguimiento de la boda
 window.CONFIG = {                                         // Objeto global que lee app.js
-  SUPABASE_URL: "",                                       // URL del proyecto Supabase (vacío = modo demostración)
-  SUPABASE_ANON_KEY: "",                                  // Llave pública "anon" de Supabase (es pública por diseño)
+  SUPABASE_URL: "https://wkalizgckbteomcjfuax.supabase.co", // URL del proyecto Supabase (vacío = modo demostración)
+  SUPABASE_ANON_KEY: "sb_publishable_aZmypCgSMmGJwQRqaCyjaQ_WdjmjkOd", // Llave pública (publishable) de Supabase; es pública por diseño
   FECHA_BODA: "2027-01-30",                               // Fecha de la boda (AAAA-MM-DD) para la cuenta regresiva
   DIAS_ALERTA: 15,                                        // Días de anticipación para marcar una tarea como "Próxima"
   ESTADOS: ["No iniciado", "En proceso", "Terminado"],         // Estados posibles, en el orden del tablero
