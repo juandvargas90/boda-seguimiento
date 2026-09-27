@@ -48,8 +48,9 @@ button, input, select, textarea { font: inherit; color: inherit; }        /* Con
 .login-monograma span, .encabezado h1 span { color: var(--dorado); font-style: italic; } /* El "&" en dorado */
 .login h1 { font-family: var(--titulo); font-weight: 500; font-size: 28px; margin: 6px 0; } /* Título de la tarjeta */
 .login-texto { color: var(--tinta-suave); }                                 /* Texto explicativo */
-#form-login { display: grid; gap: 10px; margin-top: 16px; }                 /* Formulario en columna */
-#form-login input { padding: 10px 12px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; } /* Campo de correo */
+#form-login, #form-codigo { display: grid; gap: 10px; margin-top: 16px; }  /* Formularios en columna */
+.campo-codigo { font-size: 24px !important; letter-spacing: .3em; text-align: center; } /* Código grande y espaciado */
+#form-login input, #form-codigo input { padding: 10px 12px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; } /* Campo de correo */
 .login-mensaje { min-height: 1.4em; color: var(--bosque); }                 /* Mensaje de resultado */
 
 /* ===== Encabezado ===== */

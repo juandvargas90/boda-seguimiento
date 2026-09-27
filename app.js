@@ -543,18 +543,53 @@
     setInterval(() => { if (document.visibilityState === "visible") cargar(); }, 120000); // Respaldo: recarga cada 2 min
   }                                                                   // Fin de entrar
 
-  $("#form-login").addEventListener("submit", async (ev) => {         // Pide el enlace de ingreso
+  function pasoCodigo(mostrar) {                                      // Cambia entre el paso del correo y el del código
+    $("#form-login").hidden = mostrar;                                // Oculta o muestra el formulario de correo
+    $("#form-codigo").hidden = !mostrar;                              // Muestra u oculta el formulario del código
+    $("#login-instruccion").textContent = mostrar                     // Instrucción según el paso
+      ? `Escribe el código que llegó a ${$("#login-email").value.trim() || "tu correo"} (revisa también correo no deseado).` // Paso 2
+      : "Escribe tu correo y te enviamos un código para entrar.";     // Paso 1
+    if (mostrar) $("#login-codigo").focus();                          // Pone el cursor en el código
+  }                                                                   // Fin de pasoCodigo
+
+  $("#form-login").addEventListener("submit", async (ev) => {         // Pide el código de ingreso
     ev.preventDefault();                                              // Evita recargar la página
     const email = $("#login-email").value.trim();                     // Correo escrito
     const msg = $("#login-mensaje");                                  // Mensaje de resultado
     msg.textContent = "Enviando…";                                    // Estado intermedio
-    const { error } = await S.cli.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } }); // Envía el enlace mágico
+    const { error } = await S.cli.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } }); // Envía el correo con el código
     const limite = error && /rate limit/i.test(error.message);          // ¿Se superó el límite de correos por hora?
-    msg.textContent = limite                                          // Mensaje según el resultado
-      ? "Se enviaron muchos enlaces en poco tiempo. Espera una hora e inténtalo de nuevo (o usa el último enlace que te llegó)." // Límite de envío
-      : error ? "No se pudo enviar: " + error.message                 // Otro error
-      : "Listo. Revisa tu correo (también en no deseado) y abre el enlace en este mismo navegador."; // Envío correcto
-  });                                                                 // Fin del formulario
+    if (limite) {                                                     // Si se superó el límite
+      msg.textContent = "Se enviaron muchos correos en poco tiempo. Si ya tienes un código reciente, úsalo; si no, espera una hora."; // Explica
+      return;                                                         // No avanza
+    }                                                                 // Fin del if
+    if (error) { msg.textContent = "No se pudo enviar: " + error.message; return; } // Otro error
+    msg.textContent = "";                                             // Limpia el mensaje
+    pasoCodigo(true);                                                 // Pasa al paso del código
+  });                                                                 // Fin del formulario de correo
+
+  $("#form-codigo").addEventListener("submit", async (ev) => {        // Valida el código
+    ev.preventDefault();                                              // Evita recargar la página
+    const email = $("#login-email").value.trim();                     // Correo del paso 1
+    const token = $("#login-codigo").value.replace(/\D/g, "");        // Código, solo números
+    const msg = $("#login-mensaje");                                  // Mensaje de resultado
+    if (!email) { msg.textContent = "Primero escribe tu correo."; pasoCodigo(false); return; } // Falta el correo
+    msg.textContent = "Validando…";                                   // Estado intermedio
+    const { error } = await S.cli.auth.verifyOtp({ email, token, type: "email" }); // Valida el código con Supabase
+    if (error) {                                                      // Si el código no sirve
+      msg.textContent = /expired|invalid/i.test(error.message)        // Mensaje según el error
+        ? "El código no es válido o ya venció. Usa el más reciente o pide uno nuevo." // Código vencido o incorrecto
+        : "No se pudo validar: " + error.message;                     // Otro error
+      return;                                                         // No avanza
+    }                                                                 // Fin del if
+    msg.textContent = "";                                             // Limpia el mensaje; onAuthStateChange hace el ingreso
+  });                                                                 // Fin del formulario del código
+
+  $("#btn-ya-tengo").addEventListener("click", () => {                // Ya tiene un código
+    if (!$("#login-email").reportValidity()) return;                  // Pide primero un correo válido
+    pasoCodigo(true);                                                 // Pasa al paso del código
+  });                                                                 // Fin de "ya tengo un código"
+  $("#btn-otro-correo").addEventListener("click", () => pasoCodigo(false)); // Vuelve al paso del correo
 
   const salir = async () => { if (S.cli) await S.cli.auth.signOut(); location.reload(); }; // Cierra sesión
   $("#btn-salir").addEventListener("click", salir);                   // Botón Salir
