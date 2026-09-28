@@ -30,6 +30,7 @@ Los cambios de una persona le aparecen a la otra en segundos, sin recargar.
 | `supabase/01_esquema.sql` | Crea tablas, seguridad e historial |
 | `supabase/02_datos_iniciales.sql` | Carga las 47 tareas |
 | `supabase/03_miembros.sql` | Autoriza los correos de Ana y Juan |
+| `supabase/04_checklist.sql` | Agrega el checklist de subactividades a cada tarea |
 
 ## Puesta en marcha (una sola vez)
 
@@ -49,6 +50,7 @@ Sin datos de Supabase en `config.js`, la página abre en **modo demostración** 
 - Crear tarea: botón **＋ Nueva tarea**. El código (A-08, B-05…) se asigna solo según el grupo.
 - Cambiar estado: arrastrar la tarjeta en el Tablero o abrir la tarea.
 - Registrar un pago: abrir la tarea y actualizar **Valor abonado**.
+- Checklist: dentro de cada tarea, después de Observaciones, se agregan ítems (Enter), se marcan y se quitan; se guardan con **Guardar**. El avance aparece como "☑ 2/5" en el tablero y la lista.
 - Respaldo: en **Lista → Descargar CSV (Excel)**.
 
 ## Cambiar grupos o fechas

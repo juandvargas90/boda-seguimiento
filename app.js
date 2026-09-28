@@ -20,11 +20,11 @@
     usuario: null                                                     // Usuario con sesión iniciada
   };                                                                  // Fin del estado
   const CAMPOS = ["codigo", "grupo", "categoria", "tarea", "responsable", "lider", "prioridad", "fecha_limite", "estado", // Campos editables…
-    "proveedor", "valor_total", "valor_abonado", "fecha_proximo_pago", "proximo_paso", "depende_de", "observaciones"];     // …que se envían a la base de datos
+    "proveedor", "valor_total", "valor_abonado", "fecha_proximo_pago", "proximo_paso", "depende_de", "observaciones", "checklist"]; // …que se envían a la base de datos
   const ETIQUETAS = { tarea: "nombre", grupo: "grupo", categoria: "categoría", responsable: "responsable", lider: "líder", // Nombres legibles de campos…
     prioridad: "prioridad", fecha_limite: "fecha límite", estado: "estado", proveedor: "proveedor", valor_total: "valor total", // …para describir…
     valor_abonado: "abono", fecha_proximo_pago: "próximo pago", proximo_paso: "próximo paso", depende_de: "dependencias",     // …los cambios…
-    observaciones: "observaciones", codigo: "código" };                                                                        // …en el historial
+    observaciones: "observaciones", codigo: "código", checklist: "checklist" };                                                                        // …en el historial
   const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]; // Meses abreviados
 
   // ---------- Utilidades ----------
@@ -37,6 +37,9 @@
   const clase = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "-"); // Texto → clase CSS ("En proceso" → "en-proceso")
   const vacioANulo = (v) => (v === "" || v === undefined ? null : v);                           // Convierte vacío en null
   const aPesos = (txt) => { const d = String(txt ?? "").replace(/[.,]\d{1,2}$/, "").replace(/\D/g, ""); return d ? Number(d) : null; }; // "32.636.217" o "$ 1,450,000" → 32636217 (quita puntos, comas, $ y centavos)
+  const lista = (t) => (Array.isArray(t && t.checklist) ? t.checklist : []); // Checklist de una tarea (siempre una lista)
+  const progreso = (t) => { const l = lista(t); return { hechos: l.filter((i) => i.hecho).length, total: l.length }; }; // Ítems hechos y total
+  const igual = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null); // Compara valores, incluidas listas
   const conPuntos = (n) => (n === null || n === undefined || n === "") ? "" : Number(n).toLocaleString("es-CO", { maximumFractionDigits: 0 }); // 32636217 → "32.636.217"
 
   function semaforo(t) {                                              // Calcula el semáforo de una tarea
@@ -96,7 +99,7 @@
         if (t.id) {                                                   // Si ya existe
           const i = datos.findIndex((x) => x.id === t.id);            // Busca su posición
           const cambios = {};                                         // Diferencias
-          CAMPOS.forEach((k) => { if ((datos[i][k] ?? null) !== (t[k] ?? null)) cambios[k] = { antes: datos[i][k] ?? null, despues: t[k] ?? null }; }); // Compara campo por campo
+          CAMPOS.forEach((k) => { if (!igual(datos[i][k], t[k])) cambios[k] = { antes: datos[i][k] ?? null, despues: t[k] ?? null }; }); // Compara campo por campo
           datos[i] = { ...datos[i], ...t, actualizado_en: ahora, actualizado_por: "demo" }; // Actualiza
           if (Object.keys(cambios).length) hist.unshift({ tarea_codigo: t.codigo, tarea_titulo: t.tarea, accion: "editó", cambios, usuario: "demo", fecha: ahora }); // Anota
         } else {                                                      // Si es nueva
@@ -118,7 +121,7 @@
 
   // ---------- Capa de datos: Supabase ----------
   function apiSupabase(cli) {                                         // Lee y escribe en la base de datos
-    const fila = (t) => { const f = {}; CAMPOS.forEach((k) => { f[k] = vacioANulo(t[k]); }); return f; }; // Solo campos editables
+    const fila = (t) => { const f = {}; CAMPOS.forEach((k) => { f[k] = k === "checklist" ? lista(t) : vacioANulo(t[k]); }); return f; }; // Solo campos editables (checklist nunca vacío)
     return {                                                          // Métodos de la capa
       async listar() {                                                // Trae todas las tareas
         const { data, error } = await cli.from("tareas").select("*").order("codigo"); // Consulta ordenada por código
@@ -136,7 +139,7 @@
           const antes = fila(original);                               // …campos como estaban al abrir la tarea
           const nuevo = fila(t);                                      // Campos como quedaron al guardar
           datos = {};                                                 // Solo se enviarán los campos cambiados
-          CAMPOS.forEach((k) => { if (String(nuevo[k] ?? "") !== String(antes[k] ?? "")) datos[k] = nuevo[k]; }); // Compara campo por campo
+          CAMPOS.forEach((k) => { const cambio = k === "checklist" ? !igual(nuevo[k], antes[k]) : String(nuevo[k] ?? "") !== String(antes[k] ?? ""); if (cambio) datos[k] = nuevo[k]; }); // Compara campo por campo
           if (!Object.keys(datos).length) return t;                   // Nada cambió: no se escribe
         }                                                             // Así no se pisan cambios que hizo la otra persona en otros campos
         const consulta = t.id                                         // Si tiene id…
@@ -204,6 +207,11 @@
     const extra = s === "Vencida" ? ` · hace ${-d} d` : (d === 0 ? " · hoy" : ` · en ${d} d`);  // Texto complementario
     return `<span class="chip ${clase(s)}">${esc(fmtFecha(t.fecha_limite))}${extra}</span>`;   // Etiqueta final
   }                                                                   // Fin de chipFecha
+  function chipChecklist(t) {                                         // Etiqueta "☑ 2/5" con el avance del checklist
+    const p = progreso(t);                                            // Ítems hechos y total
+    if (!p.total) return "";                                          // Sin checklist, sin etiqueta
+    return `<span class="chip${p.hechos === p.total ? " terminado" : ""}" title="Checklist">☑ ${p.hechos}/${p.total}</span>`; // Verde si está completo
+  }                                                                   // Fin de chipChecklist
   function chipBloqueo(t) {                                           // Etiqueta "espera a…"
     const b = bloqueadaPor(t);                                        // Dependencias pendientes
     return b.length ? `<span class="chip bloqueada" title="Depende de tareas no terminadas">⏳ ${esc(b.join(", "))}</span>` : ""; // Solo si hay
@@ -282,7 +290,7 @@
       `<span class="codigo">${esc(t.codigo)} · ${esc(t.categoria || t.grupo)}</span>` + // Código y categoría
       `<div class="titulo">${esc(t.tarea)}</div>` +                   // Nombre
       `<div class="meta"><span class="chip">${esc(t.responsable)}</span>${chipFecha(t)}` + // Responsable y fecha
-      `${t.prioridad === "Alta" ? `<span class="chip alta">Alta</span>` : ""}${chipBloqueo(t)}</div>` + // Prioridad y bloqueo
+      `${t.prioridad === "Alta" ? `<span class="chip alta">Alta</span>` : ""}${chipChecklist(t)}${chipBloqueo(t)}</div>` + // Prioridad y bloqueo
       `${t.proximo_paso ? `<div class="paso">→ ${esc(t.proximo_paso)}</div>` : ""}` + // Próximo paso
       `<div class="mover"><select data-mover="${t.id}" aria-label="Cambiar estado">${C.ESTADOS.map((e) => `<option${e === t.estado ? " selected" : ""}>${esc(e)}</option>`).join("")}</select></div>` + // Selector (celular)
       `</article>`;                                                   // Cierra la tarjeta
@@ -299,7 +307,7 @@
       h += `<table class="tabla"><thead><tr><th>Código</th><th>Tarea</th><th>Responsable</th><th>Fecha límite</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody>`; // Encabezados
       h += G.map((t) => `<tr data-id="${t.id}">` +                    // Fila clicable
         `<td class="codigo">${esc(t.codigo)}</td>` +                  // Código
-        `<td><b>${esc(t.tarea)}</b><span class="sub">${esc(t.categoria || "")}${t.proximo_paso ? " · → " + esc(t.proximo_paso) : ""}</span>${chipBloqueo(t)}</td>` + // Nombre, categoría y próximo paso
+        `<td><b>${esc(t.tarea)}</b><span class="sub">${esc(t.categoria || "")}${t.proximo_paso ? " · → " + esc(t.proximo_paso) : ""}</span>${chipChecklist(t)}${chipBloqueo(t)}</td>` + // Nombre, categoría, próximo paso y checklist
         `<td data-l="Responsable">${esc(t.responsable)}${t.lider ? `<span class="sub">lidera ${esc(t.lider)}</span>` : ""}</td>` + // Responsable y líder
         `<td data-l="Fecha">${chipFecha(t)}</td>` +                   // Fecha con semáforo
         `<td data-l="Estado">${chipEstado(t.estado)}</td>` +          // Estado
@@ -413,12 +421,62 @@
     const base = t || { estado: "No iniciado", prioridad: "Media", responsable: "Ambos", grupo: S.filtros.grupo || Object.values(C.GRUPOS)[0] }; // Valores por defecto
     CAMPOS.forEach((k) => { if (form.elements[k]) form.elements[k].value = base[k] ?? ""; }); // Llena cada campo
     ["valor_total", "valor_abonado"].forEach((k) => { form.elements[k].value = conPuntos(base[k]); }); // Muestra montos con puntos de miles
+    S.checklist = lista(base).map((i) => ({ texto: i.texto, hecho: !!i.hecho })); // Copia editable del checklist
+    $("#checklist-texto").value = "";                                 // Limpia el campo de nuevo ítem
+    dibujarChecklist();                                               // Dibuja los ítems
     $("#modal-titulo").textContent = t ? `${t.codigo} · Editar tarea` : "Nueva tarea"; // Título
     $("#btn-eliminar").hidden = !t;                                   // Eliminar solo al editar
     $("#confirmar-eliminar").hidden = true;                           // Oculta la confirmación
     $("#modal-meta").textContent = t && t.actualizado_en ? `Última modificación: ${nombreDe(t.actualizado_por)} · ${new Date(t.actualizado_en).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}` : ""; // Última modificación
     $("#modal").showModal();                                          // Muestra el modal
   }                                                                   // Fin de abrirModal
+
+  // ---------- Checklist dentro del modal ----------
+  function dibujarChecklist() {                                       // Dibuja los ítems del checklist en el modal
+    const p = { hechos: S.checklist.filter((i) => i.hecho).length, total: S.checklist.length }; // Avance actual
+    $("#checklist-progreso").textContent = p.total ? `${p.hechos} de ${p.total}` : "sin ítems"; // Texto de avance
+    $("#checklist-lista").innerHTML = S.checklist.map((i, n) =>       // Un renglón por ítem
+      `<li class="${i.hecho ? "hecho" : ""}">` +                      // Tachado si está hecho
+      `<input type="checkbox" data-item="${n}" ${i.hecho ? "checked" : ""} aria-label="Marcar ítem">` + // Casilla
+      `<input type="text" data-texto="${n}" value="${esc(i.texto)}" aria-label="Texto del ítem">` + // Texto editable
+      `<button type="button" class="btn-link" data-quitar="${n}" aria-label="Quitar ítem">✕</button></li>` // Botón quitar
+    ).join("");                                                       // Une los renglones
+  }                                                                   // Fin de dibujarChecklist
+
+  function agregarItem() {                                            // Agrega el ítem escrito en el campo de nuevo ítem
+    const campo = $("#checklist-texto");                              // Campo de texto
+    const texto = campo.value.trim();                                 // Texto sin espacios sobrantes
+    if (!texto) return;                                               // Si está vacío, no hace nada
+    S.checklist.push({ texto, hecho: false });                        // Agrega el ítem sin marcar
+    campo.value = "";                                                 // Limpia el campo
+    dibujarChecklist();                                               // Redibuja
+  }                                                                   // Fin de agregarItem
+
+  $("#checklist-agregar").addEventListener("click", () => { agregarItem(); $("#checklist-texto").focus(); }); // Botón Agregar
+  $("#checklist-texto").addEventListener("keydown", (ev) => {         // Enter en el campo de nuevo ítem
+    if (ev.key !== "Enter") return;                                   // Solo la tecla Enter
+    ev.preventDefault();                                              // Evita que Enter guarde todo el formulario
+    agregarItem();                                                    // Agrega el ítem
+  });                                                                 // Fin de Enter
+  $("#checklist-lista").addEventListener("change", (ev) => {          // Marcar o desmarcar un ítem
+    const n = ev.target.dataset.item;                                 // Posición del ítem
+    if (n === undefined) return;                                      // Solo casillas
+    S.checklist[n].hecho = ev.target.checked;                         // Guarda la marca
+    dibujarChecklist();                                               // Redibuja (tachado y avance)
+  });                                                                 // Fin de marcar
+  $("#checklist-lista").addEventListener("input", (ev) => {           // Editar el texto de un ítem
+    const n = ev.target.dataset.texto;                                // Posición del ítem
+    if (n !== undefined) S.checklist[n].texto = ev.target.value;      // Guarda el texto nuevo
+  });                                                                 // Fin de editar
+  $("#checklist-lista").addEventListener("keydown", (ev) => {         // Enter dentro de un ítem
+    if (ev.key === "Enter" && ev.target.dataset.texto !== undefined) ev.preventDefault(); // No guarda todo el formulario
+  });                                                                 // Fin de Enter en ítems
+  $("#checklist-lista").addEventListener("click", (ev) => {           // Quitar un ítem
+    const n = ev.target.dataset.quitar;                               // Posición del ítem
+    if (n === undefined) return;                                      // Solo botones de quitar
+    S.checklist.splice(Number(n), 1);                                 // Lo quita de la lista
+    dibujarChecklist();                                               // Redibuja
+  });                                                                 // Fin de quitar
 
   function siguienteCodigo(grupo) {                                   // Siguiente código libre del grupo
     const letra = Object.keys(C.GRUPOS).find((k) => C.GRUPOS[k] === grupo) || "X"; // Letra del grupo
@@ -434,6 +492,8 @@
     const t = { ...(S.editando || {}) };                              // Parte de la tarea original (o vacía)
     CAMPOS.forEach((k) => { if (form.elements[k]) t[k] = vacioANulo(form.elements[k].value.trim()); }); // Lee cada campo
     ["valor_total", "valor_abonado"].forEach((k) => { t[k] = aPesos(form.elements[k].value); }); // Convierte montos a número entero de pesos
+    agregarItem();                                                    // Si quedó un ítem escrito sin agregar, lo agrega
+    t.checklist = S.checklist.filter((i) => i.texto.trim()).map((i) => ({ texto: i.texto.trim(), hecho: !!i.hecho })); // Checklist limpio (sin ítems vacíos)
     if (t.depende_de) t.depende_de = t.depende_de.toUpperCase().split(/[,\s]+/).filter(Boolean).join(", "); // Normaliza dependencias
     if (!S.editando) t.codigo = siguienteCodigo(t.grupo);             // Código para tareas nuevas
     boton.disabled = true;                                            // Bloquea el botón
@@ -464,8 +524,8 @@
   function descargarCSV() {                                           // Descarga las tareas filtradas para Excel
     const cols = ["codigo", "grupo", "categoria", "tarea", "responsable", "lider", "prioridad", "fecha_limite", "estado", "proveedor", "valor_total", "valor_abonado", "fecha_proximo_pago", "proximo_paso", "depende_de", "observaciones"]; // Columnas
     const celda = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;  // Encierra en comillas y escapa comillas
-    const filas = [cols.concat("semaforo", "saldo").join(";")]        // Encabezado (punto y coma para Excel en español)
-      .concat(filtradas().map((t) => cols.map((c) => celda(t[c])).concat(celda(semaforo(t)), celda(saldo(t))).join(";"))); // Filas
+    const filas = [cols.concat("semaforo", "saldo", "checklist").join(";")]        // Encabezado (punto y coma para Excel en español)
+      .concat(filtradas().map((t) => cols.map((c) => celda(t[c])).concat(celda(semaforo(t)), celda(saldo(t)), celda(progreso(t).total ? `${progreso(t).hechos}/${progreso(t).total}` : "")).join(";"))); // Filas
     const blob = new Blob(["﻿" + filas.join("\r\n")], { type: "text/csv;charset=utf-8" }); // BOM para que Excel lea tildes
     const a = document.createElement("a");                            // Enlace temporal
     a.href = URL.createObjectURL(blob);                               // Apunta al archivo

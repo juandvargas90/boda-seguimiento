@@ -171,6 +171,17 @@ table.tabla { width: 100%; border-collapse: collapse; background: var(--papel); 
 .modal-cuerpo label { display: grid; gap: 4px; font-family: var(--etiqueta); font-size: 11px; letter-spacing: .06em; color: var(--tinta-suave); } /* Etiqueta de campo */
 .modal-cuerpo input, .modal-cuerpo select, .modal-cuerpo textarea { font-family: var(--texto); font-size: 14px; letter-spacing: 0; color: var(--tinta); padding: 8px 10px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; width: 100%; } /* Controles */
 .modal-cuerpo .ancho { grid-column: 1 / -1; }                               /* Campos de ancho completo */
+.checklist { display: grid; gap: 6px; border-top: 1px dashed var(--linea); padding-top: 10px; } /* Bloque del checklist */
+.checklist-titulo { font-family: var(--etiqueta); font-size: 11px; letter-spacing: .06em; color: var(--tinta-suave); } /* Título como las demás etiquetas */
+.checklist-titulo small { margin-left: 6px; color: var(--bosque); }        /* Avance "2 de 5" */
+#checklist-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; } /* Lista sin viñetas */
+#checklist-lista li { display: flex; align-items: center; gap: 8px; }      /* Casilla, texto y quitar en fila */
+#checklist-lista input[type=checkbox] { width: 20px; height: 20px; flex: none; accent-color: var(--bosque); cursor: pointer; } /* Casilla grande y verde */
+#checklist-lista input[type=text] { flex: 1; min-width: 0; border: 1px solid transparent !important; background: transparent !important; padding: 6px 8px !important; } /* Texto sin borde hasta editarlo */
+#checklist-lista input[type=text]:focus { border-color: var(--linea) !important; background: #fff !important; } /* Borde al editar */
+#checklist-lista li.hecho input[type=text] { text-decoration: line-through; color: var(--tinta-suave); } /* Ítem hecho: tachado */
+.checklist-nuevo { display: flex; gap: 8px; }                              /* Campo y botón en fila */
+.checklist-nuevo input { flex: 1; min-width: 0; }                          /* El campo ocupa el espacio libre */
 .modal-meta { font-size: 12px; color: var(--tinta-suave); margin: 0; }      /* Última modificación */
 .modal-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--linea); } /* Botones */
 .espacio { flex: 1; }                                                       /* Empuja botones a la derecha */
