@@ -487,8 +487,8 @@
 
     h += `<h2 class="seccion-titulo">Movimientos</h2>`;               // Título
     const meses = [...new Set(S.pagos.map((p) => mesDe(p.fecha)))].sort().reverse(); // Meses con pagos
-    h += `<div class="filtros-pagos"><select id="fp-pagador"><option value="">Todas las personas</option>${Object.keys(porPersona).sort().map((n) => `<option${S.fpagos.pagador === n ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>` + // Filtro por persona
-      `<select id="fp-mes"><option value="">Todos los meses</option>${meses.map((m) => `<option value="${m}"${S.fpagos.mes === m ? " selected" : ""}>${esc(nombreMes(m))}</option>`).join("")}</select></div>`; // Filtro por mes
+    h += `<div class="filtros-pagos"><label class="filtro" title="Muestra solo los pagos hechos por esta persona"><span>Quién pagó</span><select id="fp-pagador"><option value="">Todas las personas</option>${Object.keys(porPersona).sort().map((n) => `<option${S.fpagos.pagador === n ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>` + // Filtro por persona
+      `</label><label class="filtro" title="Muestra solo los pagos de este mes (según la fecha del pago)"><span>Mes del pago</span><select id="fp-mes"><option value="">Todos los meses</option>${meses.map((m) => `<option value="${m}"${S.fpagos.mes === m ? " selected" : ""}>${esc(nombreMes(m))}</option>`).join("")}</select></label></div>`; // Filtro por mes
     const M = pagosFiltrados();                                       // Movimientos filtrados
     h += M.length ? `<table class="tabla"><thead><tr><th>Fecha</th><th>Tarea</th><th class="num">Monto</th><th>Pagado por</th><th>Medio</th><th>Soporte</th></tr></thead><tbody>` + // Encabezados
       M.map((p) => { const t = tareaDe(p.tarea_id) || {}; return `<tr data-pago="${p.id}">` + // Fila clicable (edita el pago)

@@ -70,9 +70,13 @@ button, input, select, textarea { font: inherit; color: inherit; }        /* Con
 .pestana.activa { color: var(--tinta); border-bottom-color: var(--dorado); } /* Pestaña seleccionada */
 
 /* ===== Filtros ===== */
-.filtros { display: flex; flex-wrap: wrap; gap: 8px; max-width: 1240px; margin: 12px auto 0; padding: 0 16px; } /* Barra de filtros */
-.filtros input, .filtros select { padding: 7px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--papel); min-width: 0; } /* Controles de filtro */
-.filtros input { flex: 1 1 220px; }                                        /* La búsqueda ocupa el espacio libre */
+.filtros { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; max-width: 1240px; margin: 12px auto 0; padding: 0 16px; } /* Barra de filtros */
+.filtros input, .filtros select, .filtros-pagos select { padding: 7px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--papel); min-width: 0; width: 100%; } /* Controles de filtro */
+.filtro { display: grid; gap: 3px; flex: 0 1 auto; }                         /* Etiqueta encima del control */
+.filtro > span { font-family: var(--etiqueta); font-size: 11px; letter-spacing: .06em; color: var(--tinta-suave); } /* Texto de la etiqueta */
+.filtro[title] > span::after { content: " ⓘ"; opacity: .6; }                /* Indica que hay descripción al pasar el mouse */
+.filtro-texto { flex: 1 1 220px; }                                          /* La búsqueda ocupa el espacio libre */
+.filtros .btn-link { padding-bottom: 8px; }                                 /* Alinea "Limpiar" con los controles */
 
 /* ===== Contenedor de vistas ===== */
 .vista { max-width: 1240px; margin: 0 auto; padding: 16px 16px 90px; }     /* Área principal con espacio para el botón flotante */
@@ -204,8 +208,7 @@ table.tabla { width: 100%; border-collapse: collapse; background: var(--papel); 
 .comprobante { display: grid; gap: 6px; }                              /* Bloque del comprobante */
 .persona { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; margin-bottom: 10px; } /* Fila de quién pagó */
 .persona .barra i { background: var(--salvia); }                       /* Barra de su aporte */
-.filtros-pagos { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; } /* Filtros de movimientos */
-.filtros-pagos select { padding: 7px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--papel); } /* Estilo de filtros */
+.filtros-pagos { display: flex; flex-wrap: wrap; gap: 8px 10px; margin: 6px 0 10px; } /* Filtros de movimientos */
 .acciones-pagos { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; } /* Botones de la pestaña Pagos */
 .modal-meta { font-size: 12px; color: var(--tinta-suave); margin: 0; }      /* Última modificación */
 .modal-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--linea); } /* Botones */
@@ -221,6 +224,8 @@ table.tabla { width: 100%; border-collapse: collapse; background: var(--papel); 
   .encabezado h1 { font-size: 28px; }                                       /* Nombres más pequeños */
   .usuario span { display: none; }                                          /* Oculta el correo */
   .dos-columnas { grid-template-columns: 1fr; }                             /* Una sola columna */
+  .filtros { display: grid; grid-template-columns: 1fr 1fr; }             /* Filtros en dos columnas */
+  .filtro-texto { grid-column: 1 / -1; }                                  /* La búsqueda ocupa toda la fila */
   .tablero { grid-template-columns: 1fr; }                                  /* Columnas apiladas */
   .columna-tarjetas { max-height: none; overflow: visible; }               /* En celular no hay desplazamiento interno */
   .mover { display: block; }                                                /* Muestra el selector de estado */
