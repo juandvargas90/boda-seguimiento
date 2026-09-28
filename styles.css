@@ -194,6 +194,19 @@ table.tabla { width: 100%; border-collapse: collapse; background: var(--papel); 
 .adjunto-quitar.confirmar { background: var(--rojo); }                 /* Rojo al pedir confirmación */
 .modal-cuerpo label.btn-adjuntar { display: inline-flex; justify-content: center; width: fit-content; font-family: var(--texto); font-size: 14px; letter-spacing: 0; color: var(--tinta); cursor: pointer; } /* Botón de adjuntar (no parece etiqueta de campo) */
 .btn-adjuntar.deshabilitado { opacity: .5; pointer-events: none; }     /* Inactivo en tareas nuevas o en demo */
+.campo-calculado { background: var(--gris-suave) !important; color: var(--tinta-suave) !important; } /* Campo que se calcula solo */
+.pagos-tarea { display: grid; gap: 6px; border-top: 1px dashed var(--linea); padding-top: 10px; } /* Bloque de pagos de la tarea */
+.pagos-tarea .btn, .comprobante input { width: fit-content; }          /* Botón y selector a su tamaño */
+.pago-fila { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; } /* Renglón de pago */
+.pago-fila:hover { border-color: var(--salvia); }                      /* Resalta al pasar el mouse */
+.pago-fila b { font-variant-numeric: tabular-nums; }                   /* Montos alineados */
+.pago-fila .sub { display: inline; }                                   /* Detalle en la misma línea */
+.comprobante { display: grid; gap: 6px; }                              /* Bloque del comprobante */
+.persona { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; margin-bottom: 10px; } /* Fila de quién pagó */
+.persona .barra i { background: var(--salvia); }                       /* Barra de su aporte */
+.filtros-pagos { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; } /* Filtros de movimientos */
+.filtros-pagos select { padding: 7px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--papel); } /* Estilo de filtros */
+.acciones-pagos { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; } /* Botones de la pestaña Pagos */
 .modal-meta { font-size: 12px; color: var(--tinta-suave); margin: 0; }      /* Última modificación */
 .modal-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--linea); } /* Botones */
 .espacio { flex: 1; }                                                       /* Empuja botones a la derecha */

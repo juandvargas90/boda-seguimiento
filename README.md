@@ -32,6 +32,7 @@ Los cambios de una persona le aparecen a la otra en segundos, sin recargar.
 | `supabase/03_miembros.sql` | Autoriza los correos de Ana y Juan |
 | `supabase/04_checklist.sql` | Agrega el checklist de subactividades a cada tarea |
 | `supabase/05_adjuntos.sql` | Fotos y archivos por tarea: columna, carpeta privada y seguridad |
+| `supabase/06_pagos.sql` | Registro de pagos (quién, cuándo, cuánto, medio, comprobante); el abonado se calcula solo |
 
 ## Puesta en marcha (una sola vez)
 
@@ -50,7 +51,8 @@ Sin datos de Supabase en `config.js`, la página abre en **modo demostración** 
 - Entrar: escribir el correo → abrir el enlace que llega (en el mismo dispositivo).
 - Crear tarea: botón **＋ Nueva tarea**. El código (A-08, B-05…) se asigna solo según el grupo.
 - Cambiar estado: arrastrar la tarjeta en el Tablero o abrir la tarea.
-- Registrar un pago: abrir la tarea y actualizar **Valor abonado**.
+- Registrar un pago: en la tarea, sección **Pagos de esta tarea → ＋ Registrar pago**, o desde la pestaña **Pagos**. Se indica monto, fecha, quién pagó (Juan, Ana, Ambos, familias u otra persona), medio, nota y comprobante opcional. El **Valor abonado** se calcula solo con la suma de los pagos.
+- Balance: pestaña **Pagos** → total comprometido, pagado, saldo, quién ha pagado, próximos pagos, detalle por proveedor y movimientos (filtros por persona y mes, descarga a Excel).
 - Checklist: dentro de cada tarea, después de Observaciones, se agregan ítems (Enter), se marcan y se quitan; se guardan con **Guardar**. El avance aparece como "☑ 2/5" en el tablero y la lista.
 - Fotos: dentro de cada tarea ya guardada, **＋ Agregar foto o PDF** (en celular permite tomar la foto). Se suben al instante (las fotos se reducen a 1600 px); tocar una miniatura la abre en grande; la ✕ la quita (pide confirmación). Máximo 10 MB por archivo.
 - Respaldo: en **Lista → Descargar CSV (Excel)**.

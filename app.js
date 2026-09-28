@@ -10,6 +10,8 @@
   const $ = (s) => document.querySelector(s);                         // Atajo para buscar un elemento
   const S = {                                                         // Estado de la aplicación
     tareas: [],                                                       // Lista de tareas cargadas
+    pagos: [],                                                        // Pagos registrados (todas las tareas)
+    fpagos: { pagador: "", mes: "" },                                 // Filtros de la lista de movimientos
     historial: [],                                                    // Últimos cambios registrados
     miembros: [],                                                     // Personas autorizadas (correo y nombre)
     vista: "inicio",                                                  // Vista activa
@@ -20,7 +22,7 @@
     usuario: null                                                     // Usuario con sesión iniciada
   };                                                                  // Fin del estado
   const CAMPOS = ["codigo", "grupo", "categoria", "tarea", "responsable", "lider", "prioridad", "fecha_limite", "estado", // Campos editables…
-    "proveedor", "valor_total", "valor_abonado", "fecha_proximo_pago", "proximo_paso", "depende_de", "observaciones", "checklist"]; // …que se envían a la base de datos
+    "proveedor", "valor_total", "fecha_proximo_pago", "proximo_paso", "depende_de", "observaciones", "checklist"]; // …que se envían a la base de datos
   const ETIQUETAS = { tarea: "nombre", grupo: "grupo", categoria: "categoría", responsable: "responsable", lider: "líder", // Nombres legibles de campos…
     prioridad: "prioridad", fecha_limite: "fecha límite", estado: "estado", proveedor: "proveedor", valor_total: "valor total", // …para describir…
     valor_abonado: "abono", fecha_proximo_pago: "próximo pago", proximo_paso: "próximo paso", depende_de: "dependencias",     // …los cambios…
@@ -39,6 +41,9 @@
   const aPesos = (txt) => { const d = String(txt ?? "").replace(/[.,]\d{1,2}$/, "").replace(/\D/g, ""); return d ? Number(d) : null; }; // "32.636.217" o "$ 1,450,000" → 32636217 (quita puntos, comas, $ y centavos)
   const lista = (t) => (Array.isArray(t && t.checklist) ? t.checklist : []); // Checklist de una tarea (siempre una lista)
   const adjuntosDe = (t) => (Array.isArray(t && t.adjuntos) ? t.adjuntos : []); // Fotos y archivos de una tarea (siempre una lista)
+  const pagosDe = (id) => S.pagos.filter((p) => String(p.tarea_id) === String(id)); // Pagos de una tarea
+  const tareaDe = (id) => S.tareas.find((t) => String(t.id) === String(id)); // Tarea por id
+  const hoyISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }; // Fecha de hoy "AAAA-MM-DD" en hora local
   const progreso = (t) => { const l = lista(t); return { hechos: l.filter((i) => i.hecho).length, total: l.length }; }; // Ítems hechos y total
   const igual = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null); // Compara valores, incluidas listas
   const conPuntos = (n) => (n === null || n === undefined || n === "") ? "" : Number(n).toLocaleString("es-CO", { maximumFractionDigits: 0 }); // 32636217 → "32.636.217"
@@ -91,6 +96,13 @@
     try { datos = JSON.parse(localStorage.getItem(CLAVE)); } catch (e) { datos = null; } // Intenta leer lo guardado
     if (!Array.isArray(datos)) datos = window.DATOS_INICIALES.map((t, i) => ({ id: i + 1, ...t })); // Si no hay, usa los datos iniciales
     const hist = [];                                                  // Historial en memoria
+    let pagos = [];                                                   // Pagos de demostración
+    try { pagos = JSON.parse(localStorage.getItem(CLAVE + "-pagos")) || []; } catch (e) { pagos = []; } // Intenta leer los guardados
+    if (!pagos.length) datos.filter((t) => Number(t.valor_abonado) > 0).forEach((t, i) => pagos.push({ id: i + 1, tarea_id: t.id, fecha: null, monto: Number(t.valor_abonado), pagado_por: "Juan", medio: null, nota: "Pago de demostración" })); // Crea pagos a partir de los abonos
+    const recalcular = () => {                                        // Recalcula el abonado de cada tarea con sus pagos
+      datos.forEach((t) => { const s = pagos.filter((p) => p.tarea_id === t.id).reduce((a, p) => a + Number(p.monto), 0); t.valor_abonado = s || null; }); // Suma por tarea
+      try { localStorage.setItem(CLAVE + "-pagos", JSON.stringify(pagos)); localStorage.setItem(CLAVE, JSON.stringify(datos)); } catch (e) { /* sin almacenamiento */ } // Guarda
+    };                                                                // Fin de recalcular
     const persistir = () => { try { localStorage.setItem(CLAVE, JSON.stringify(datos)); } catch (e) { /* sin almacenamiento */ } }; // Guarda si se puede
     return {                                                          // Métodos de la capa
       async listar() { return datos.map((t) => ({ ...t })); },        // Devuelve copia de las tareas
@@ -119,7 +131,16 @@
       escuchar() { /* en demo no hay otros usuarios */ },             // Sin tiempo real
       async adjuntar() { throw new Error("Las fotos solo funcionan en la página publicada"); }, // Sin almacenamiento en demo
       async quitarAdjunto() { throw new Error("Las fotos solo funcionan en la página publicada"); }, // Sin almacenamiento en demo
-      async urls() { return {}; }                                    // Sin enlaces en demo
+      async urls() { return {}; },                                   // Sin enlaces en demo
+      async listarPagos() { return pagos.map((p) => ({ ...p })); },    // Pagos de demostración
+      async guardarPago(p, archivo) {                                 // Crea o edita un pago
+        if (archivo) throw new Error("Los comprobantes solo funcionan en la página publicada"); // Sin almacenamiento en demo
+        if (p.id) { const i = pagos.findIndex((x) => x.id === p.id); pagos[i] = { ...pagos[i], ...p }; } // Edita
+        else { p.id = Math.max(0, ...pagos.map((x) => x.id)) + 1; pagos.push({ ...p }); } // Crea
+        recalcular();                                                 // Actualiza abonados
+        return p;                                                     // Devuelve el pago
+      },                                                              // Fin de guardarPago
+      async eliminarPago(p) { pagos = pagos.filter((x) => x.id !== p.id); recalcular(); } // Elimina y recalcula
     };                                                                // Fin de métodos
   }                                                                   // Fin de apiDemo
 
@@ -156,7 +177,8 @@
       async eliminar(t) {                                             // Elimina una tarea
         const { error } = await cli.from("tareas").delete().eq("id", t.id); // Borra por id
         if (error) throw error;                                       // Propaga el error
-        const rutas = adjuntosDe(t).map((a) => a.ruta);               // Archivos que tenía la tarea
+        const rutas = adjuntosDe(t).map((a) => a.ruta)                // Archivos que tenía la tarea…
+          .concat(pagosDe(t.id).filter((p) => p.comprobante && p.comprobante.ruta).map((p) => p.comprobante.ruta)); // …y comprobantes de sus pagos
         if (rutas.length) await cli.storage.from("adjuntos").remove(rutas); // Los borra del almacenamiento (si falla, quedan huérfanos pero no visibles)
       },                                                              // Fin de eliminar
       async adjuntar(t, archivo) {                                    // Sube un archivo y lo agrega a la tarea
@@ -181,6 +203,33 @@
         await cli.storage.from("adjuntos").remove([ruta]);            // Borra el archivo del almacenamiento
         return listaNueva;                                            // Devuelve la lista actualizada
       },                                                              // Fin de quitarAdjunto
+      async listarPagos() {                                           // Trae todos los pagos
+        const { data, error } = await cli.from("pagos").select("*").order("fecha", { ascending: false, nullsFirst: false }).order("id", { ascending: false }); // Más recientes primero
+        if (error) throw error;                                       // Propaga el error
+        return data;                                                  // Devuelve las filas
+      },                                                              // Fin de listarPagos
+      async guardarPago(p, archivo) {                                 // Crea o edita un pago (con comprobante opcional)
+        const datos = { tarea_id: p.tarea_id, fecha: p.fecha, monto: p.monto, pagado_por: p.pagado_por, medio: p.medio, nota: p.nota, comprobante: p.comprobante ?? null }; // Campos del pago
+        let nuevaRuta = null;                                         // Ruta del comprobante nuevo (si se sube)
+        if (archivo) {                                                // Si trae comprobante nuevo
+          const ext = ((archivo.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg"); // Extensión limpia
+          nuevaRuta = `pagos/${p.tarea_id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`; // Ruta única
+          const { error: e1 } = await cli.storage.from("adjuntos").upload(nuevaRuta, archivo, { contentType: archivo.type, upsert: false }); // Sube el comprobante
+          if (e1) throw e1;                                           // Propaga el error
+          datos.comprobante = { ruta: nuevaRuta, nombre: archivo.name, tipo: archivo.type }; // Lo asocia al pago
+        }                                                             // Fin del comprobante
+        const consulta = p.id ? cli.from("pagos").update(datos).eq("id", p.id) : cli.from("pagos").insert(datos); // Edita o crea
+        const { data, error } = await consulta.select().single();     // Ejecuta
+        if (error) { if (nuevaRuta) await cli.storage.from("adjuntos").remove([nuevaRuta]); throw error; } // Si falla, deshace la subida
+        const anterior = p.comprobanteAnterior;                       // Comprobante que había antes
+        if (anterior && anterior.ruta && (!datos.comprobante || datos.comprobante.ruta !== anterior.ruta)) await cli.storage.from("adjuntos").remove([anterior.ruta]); // Borra el reemplazado o quitado
+        return data;                                                  // Devuelve el pago guardado
+      },                                                              // Fin de guardarPago
+      async eliminarPago(p) {                                         // Elimina un pago
+        const { error } = await cli.from("pagos").delete().eq("id", p.id); // Borra la fila
+        if (error) throw error;                                       // Propaga el error
+        if (p.comprobante && p.comprobante.ruta) await cli.storage.from("adjuntos").remove([p.comprobante.ruta]); // Borra su comprobante
+      },                                                              // Fin de eliminarPago
       async urls(rutas) {                                             // Enlaces temporales (1 hora) para ver archivos privados
         if (!rutas.length) return {};                                 // Sin archivos, nada que pedir
         const { data, error } = await cli.storage.from("adjuntos").createSignedUrls(rutas, 3600); // Pide los enlaces
@@ -193,6 +242,7 @@
         cli.channel("cambios-boda")                                   // Canal propio
           .on("postgres_changes", { event: "*", schema: "public", table: "tareas" }, alCambiar) // Cualquier cambio en tareas
           .on("postgres_changes", { event: "INSERT", schema: "public", table: "historial" }, alCambiar) // Nuevas entradas de historial
+          .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, alCambiar) // Cualquier cambio en pagos
           .subscribe();                                               // Activa la suscripción
       }                                                               // Fin de escuchar
     };                                                                // Fin de métodos
@@ -201,8 +251,9 @@
   // ---------- Carga de datos ----------
   async function cargar() {                                           // Trae tareas e historial y redibuja
     try {                                                             // Intenta
-      const [tareas, historial] = await Promise.all([S.api.listar(), S.api.historial()]); // Ambas consultas en paralelo
+      const [tareas, historial, pagos] = await Promise.all([S.api.listar(), S.api.historial(), S.api.listarPagos()]); // Tres consultas en paralelo
       S.tareas = tareas;                                              // Guarda las tareas
+      S.pagos = pagos;                                                // Guarda los pagos
       S.historial = historial;                                        // Guarda el historial
     } catch (e) {                                                     // Si falla
       aviso("No se pudo cargar: " + (e.message || e));                // Avisa
@@ -310,6 +361,7 @@
       ).join(", ");                                                   // Separados por coma
       detalle = detalle ? ` (${detalle})` : "";                       // Entre paréntesis
     }                                                                 // Fin del if
+    if (ev.cambios && ev.cambios.pago) detalle = ` (${fmtCOP(ev.cambios.pago.monto)} · pagó ${esc(ev.cambios.pago.pagado_por)})`; // Detalle de un pago
     return `<div class="actividad"><b>${esc(nombreDe(ev.usuario))}</b> ${esc(ev.accion)} <span class="codigo">${esc(ev.tarea_codigo)}</span> ${esc(ev.tarea_titulo)}${detalle} <small>· ${hace(ev.fecha)}</small></div>`; // Línea final
   }                                                                   // Fin de describir
 
@@ -388,29 +440,78 @@
   }                                                                   // Fin de vistaCronograma
   const hitoBoda = () => `<div class="hito">💍 ${esc(aFecha(C.FECHA_BODA).getDate())} · ¡Nos casamos!</div>`; // Marca del día de la boda
 
-  // ---------- Vista: Pagos ----------
-  function vistaPagos() {                                             // Resumen de dinero
-    const P = S.tareas.filter((t) => Number(t.valor_total) > 0 || Number(t.valor_abonado) > 0 || t.fecha_proximo_pago) // Tareas con plata
-      .sort((a, b) => (saldo(b) || 0) - (saldo(a) || 0));             // Mayor saldo primero
-    const tot = P.reduce((s, t) => s + Number(t.valor_total || 0), 0); // Total comprometido
-    const abo = P.reduce((s, t) => s + Number(t.valor_abonado || 0), 0); // Total abonado
-    const sal = P.reduce((s, t) => s + (saldo(t) || 0), 0);           // Saldo total
+  // ---------- Vista: Pagos (balance general) ----------
+  const comprometido = (t) => Math.max(Number(t.valor_total || 0), Number(t.valor_abonado || 0)); // Lo comprometido (si no hay total, al menos lo pagado)
+  const mesDe = (f) => (f ? f.slice(0, 7) : "sin-fecha");            // "2026-10" o "sin-fecha"
+  const nombreMes = (m) => m === "sin-fecha" ? "Sin fecha" : new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1).toLocaleDateString("es-CO", { month: "long", year: "numeric" }); // "octubre de 2026"
+
+  function vistaPagos() {                                             // Balance general de dinero
+    const T = S.tareas.filter((t) => Number(t.valor_total) > 0 || Number(t.valor_abonado) > 0 || t.fecha_proximo_pago || pagosDe(t.id).length); // Tareas con plata
+    const tot = T.reduce((a, t) => a + comprometido(t), 0);           // Total comprometido
+    const pag = S.pagos.reduce((a, p) => a + Number(p.monto), 0);     // Total pagado (suma de movimientos)
+    const sal = T.reduce((a, t) => a + (saldo(t) || 0), 0);           // Saldo pendiente
     let h = `<div class="kpis">` +                                    // Indicadores
       `<div class="kpi"><b style="font-size:26px">${fmtCOP(tot)}</b><span>Total comprometido</span></div>` + // Total
-      `<div class="kpi ok"><b style="font-size:26px">${fmtCOP(abo)}</b><span>Abonado</span></div>` +       // Abonado
+      `<div class="kpi ok"><b style="font-size:26px">${fmtCOP(pag)}</b><span>Pagado (${S.pagos.length} pagos)</span></div>` + // Pagado
       `<div class="kpi alerta"><b style="font-size:26px">${fmtCOP(sal)}</b><span>Saldo pendiente</span></div>` + // Saldo
-      `<div class="kpi"><b>${tot ? Math.round((abo / tot) * 100) : 0}%</b><span>Pagado</span></div></div>`; // Porcentaje
-    h += `<p class="sub" style="margin:14px 0">Para registrar un pago, abre la tarea y actualiza "Valor abonado". Para agregar un gasto, llena "Valor total" en la tarea correspondiente.</p>`; // Instrucción
-    h += `<table class="tabla"><thead><tr><th>Código</th><th>Proveedor / tarea</th><th class="num">Valor total</th><th class="num">Abonado</th><th class="num">Saldo</th><th>Próximo pago</th><th>Estado</th></tr></thead><tbody>`; // Encabezados
+      `<div class="kpi"><b>${tot ? Math.round((pag / tot) * 100) : 0}%</b><span>Pagado del total</span></div></div>`; // Porcentaje
+    h += `<div class="acciones-pagos"><button class="btn btn-primario" id="btn-nuevo-pago">＋ Registrar pago</button><button class="btn" id="btn-csv-pagos">Descargar pagos (Excel)</button></div>`; // Acciones
+
+    h += `<div class="dos-columnas"><div>`;                           // Columna izquierda
+    h += `<h2 class="seccion-titulo">Quién ha pagado</h2>`;           // Título
+    const porPersona = {};                                            // Persona → total
+    S.pagos.forEach((p) => { porPersona[p.pagado_por] = (porPersona[p.pagado_por] || 0) + Number(p.monto); }); // Suma por persona
+    const personas = Object.entries(porPersona).sort((a, b) => b[1] - a[1]); // Mayor aporte primero
+    h += personas.length ? personas.map(([n, v]) => `<div class="persona" data-filtrar-pagador="${esc(n)}" title="Ver sus pagos"><span>${esc(n)}</span><b>${fmtCOP(v)} <small class="sub" style="display:inline">${pag ? Math.round((v / pag) * 100) : 0}%</small></b>` + // Nombre, total y porcentaje
+      `<div class="barra"><i style="width:${pag ? (v / pag) * 100 : 0}%"></i></div></div>`).join("") : `<p class="vacio">Aún no hay pagos registrados.</p>`; // Barra
+    h += `</div><div>`;                                               // Columna derecha
+    h += `<h2 class="seccion-titulo">Próximos pagos</h2>`;            // Título
+    const pend = T.filter((t) => (saldo(t) || 0) > 0).sort((a, b) => String(a.fecha_proximo_pago || "9").localeCompare(String(b.fecha_proximo_pago || "9"))); // Con saldo, por fecha
+    h += pend.length ? pend.map((t) => {                              // Una fila por tarea con saldo
+      const f = t.fecha_proximo_pago;                                 // Fecha del próximo pago
+      const chip = !f ? `<span class="chip">Fecha por definir</span>` : dias(f) < 0 ? `<span class="chip vencida">${esc(fmtFecha(f))} · vencido</span>` : dias(f) <= C.DIAS_ALERTA ? `<span class="chip proxima">${esc(fmtFecha(f))} · en ${dias(f)} d</span>` : `<span class="chip a-tiempo">${esc(fmtFecha(f))}</span>`; // Color según cercanía
+      return `<div class="fila" data-id="${t.id}"><span class="codigo">${esc(t.codigo)}</span><span class="texto">${esc(t.proveedor || t.tarea)} <span class="sub">Saldo ${fmtCOP(saldo(t))}</span></span>${chip}</div>`; // Fila
+    }).join("") : `<p class="vacio">No hay saldos pendientes con valor total registrado.</p>`; // Sin pendientes
+    h += `</div></div>`;                                              // Cierra columnas
+
+    h += `<h2 class="seccion-titulo">Por proveedor</h2>`;             // Título
+    const P = T.slice().sort((a, b) => (saldo(b) || 0) - (saldo(a) || 0)); // Mayor saldo primero
+    h += `<table class="tabla"><thead><tr><th>Código</th><th>Proveedor / tarea</th><th class="num">Valor total</th><th class="num">Pagado</th><th class="num">Saldo</th><th>Próximo pago</th><th>Estado</th></tr></thead><tbody>`; // Encabezados
     h += P.map((t) => `<tr data-id="${t.id}"><td class="codigo">${esc(t.codigo)}</td>` + // Fila clicable
       `<td><b>${esc(t.proveedor || "Sin proveedor")}</b><span class="sub">${esc(t.tarea)}</span></td>` + // Proveedor y tarea
-      `<td data-l="Total" class="num">${fmtCOP(t.valor_total)}</td><td data-l="Abonado" class="num">${fmtCOP(t.valor_abonado)}</td>` + // Total y abonado
+      `<td data-l="Total" class="num">${fmtCOP(t.valor_total)}</td><td data-l="Pagado" class="num">${fmtCOP(t.valor_abonado)}</td>` + // Total y pagado
       `<td data-l="Saldo" class="num"><b>${fmtCOP(saldo(t))}</b></td>` + // Saldo
       `<td data-l="Próximo pago">${t.fecha_proximo_pago ? esc(fmtFecha(t.fecha_proximo_pago)) : `<span class="sub">Por definir</span>`}</td>` + // Próximo pago
       `<td data-l="Estado">${chipEstado(t.estado)}</td></tr>`).join(""); // Estado
-    h += `</tbody><tfoot><tr><td></td><td>Total</td><td class="num" data-l="Total">${fmtCOP(tot)}</td><td class="num" data-l="Abonado">${fmtCOP(abo)}</td><td class="num" data-l="Saldo">${fmtCOP(sal)}</td><td></td><td></td></tr></tfoot></table>`; // Totales
+    h += `</tbody><tfoot><tr><td></td><td>Total</td><td class="num" data-l="Total">${fmtCOP(tot)}</td><td class="num" data-l="Pagado">${fmtCOP(pag)}</td><td class="num" data-l="Saldo">${fmtCOP(sal)}</td><td></td><td></td></tr></tfoot></table>`; // Totales
+
+    h += `<h2 class="seccion-titulo">Movimientos</h2>`;               // Título
+    const meses = [...new Set(S.pagos.map((p) => mesDe(p.fecha)))].sort().reverse(); // Meses con pagos
+    h += `<div class="filtros-pagos"><select id="fp-pagador"><option value="">Todas las personas</option>${Object.keys(porPersona).sort().map((n) => `<option${S.fpagos.pagador === n ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>` + // Filtro por persona
+      `<select id="fp-mes"><option value="">Todos los meses</option>${meses.map((m) => `<option value="${m}"${S.fpagos.mes === m ? " selected" : ""}>${esc(nombreMes(m))}</option>`).join("")}</select></div>`; // Filtro por mes
+    const M = pagosFiltrados();                                       // Movimientos filtrados
+    h += M.length ? `<table class="tabla"><thead><tr><th>Fecha</th><th>Tarea</th><th class="num">Monto</th><th>Pagado por</th><th>Medio</th><th>Soporte</th></tr></thead><tbody>` + // Encabezados
+      M.map((p) => { const t = tareaDe(p.tarea_id) || {}; return `<tr data-pago="${p.id}">` + // Fila clicable (edita el pago)
+        `<td data-l="Fecha">${p.fecha ? esc(fmtFecha(p.fecha)) : `<span class="sub">Sin fecha</span>`}</td>` + // Fecha
+        `<td><b>${esc(t.proveedor || t.tarea || "")}</b><span class="sub">${esc(t.codigo || "")}${p.nota ? " · " + esc(p.nota) : ""}</span></td>` + // Tarea y nota
+        `<td data-l="Monto" class="num"><b>${fmtCOP(p.monto)}</b></td><td data-l="Pagado por">${esc(p.pagado_por)}</td>` + // Monto y quién
+        `<td data-l="Medio">${esc(p.medio || "—")}</td><td data-l="Soporte">${p.comprobante ? `<a data-comprobante="${esc(p.comprobante.ruta)}" href="#">📎 Ver</a>` : "—"}</td></tr>`; }).join("") + // Medio y comprobante
+      `</tbody><tfoot><tr><td></td><td>Total (${M.length})</td><td class="num" data-l="Total">${fmtCOP(M.reduce((a, p) => a + Number(p.monto), 0))}</td><td></td><td></td><td></td></tr></tfoot></table>` // Total filtrado
+      : `<p class="vacio">No hay pagos con estos filtros.</p>`;       // Sin resultados
     return h;                                                         // Devuelve el HTML
   }                                                                   // Fin de vistaPagos
+
+  function pagosFiltrados() {                                         // Pagos según los filtros de movimientos
+    return S.pagos.filter((p) => (!S.fpagos.pagador || p.pagado_por === S.fpagos.pagador) && (!S.fpagos.mes || mesDe(p.fecha) === S.fpagos.mes)) // Por persona y mes
+      .sort((x, y) => String(y.fecha || "0").localeCompare(String(x.fecha || "0")) || y.id - x.id); // Más recientes primero; sin fecha al final
+  }                                                                   // Fin de pagosFiltrados
+
+  async function enlazarComprobantes(raiz) {                          // Pone enlaces temporales a los comprobantes visibles
+    const links = [...raiz.querySelectorAll("[data-comprobante]")];   // Enlaces sin resolver
+    const faltan = [...new Set(links.map((a) => a.dataset.comprobante))].filter((r) => !urlsAdjuntos[r]); // Rutas sin enlace
+    try { Object.assign(urlsAdjuntos, await S.api.urls(faltan)); } catch (e) { /* se queda sin enlace */ } // Pide los enlaces
+    links.forEach((a) => { const u = urlsAdjuntos[a.dataset.comprobante]; if (u) { a.href = u; a.target = "_blank"; a.rel = "noopener"; } }); // Los asigna
+  }                                                                   // Fin de enlazarComprobantes
 
   // ---------- Dibujo general ----------
   const VISTAS = { inicio: vistaInicio, tablero: vistaTablero, lista: vistaLista, cronograma: vistaCronograma, pagos: vistaPagos }; // Mapa vista → función
@@ -420,6 +521,8 @@
     $("#filtros").hidden = !["tablero", "lista", "cronograma"].includes(S.vista); // Filtros solo en estas vistas
     $("#lista-categorias").innerHTML = [...new Set(S.tareas.map((t) => t.categoria).filter(Boolean))].sort().map((c) => `<option value="${esc(c)}">`).join(""); // Sugerencias de categoría
     $("#vista").innerHTML = VISTAS[S.vista]();                        // Dibuja la vista
+    if (S.vista === "pagos") enlazarComprobantes($("#vista"));        // Enlaces a comprobantes de pago
+    if ($("#modal").open && S.editando) dibujarPagosTarea();          // Si hay una tarea abierta, refresca sus pagos
     document.querySelectorAll(".pestana").forEach((b) => b.classList.toggle("activa", b.dataset.vista === S.vista)); // Marca la pestaña activa
   }                                                                   // Fin de render
 
@@ -465,6 +568,7 @@
     $("#checklist-texto").value = "";                                 // Limpia el campo de nuevo ítem
     dibujarChecklist();                                               // Dibuja los ítems
     dibujarAdjuntos();                                                // Dibuja fotos y archivos
+    dibujarPagosTarea();                                              // Dibuja los pagos de la tarea
     $("#modal-titulo").textContent = t ? `${t.codigo} · Editar tarea` : "Nueva tarea"; // Título
     $("#btn-eliminar").hidden = !t;                                   // Eliminar solo al editar
     $("#confirmar-eliminar").hidden = true;                           // Oculta la confirmación
@@ -604,6 +708,115 @@
     } catch (e) { aviso("No se pudo quitar: " + (e.message || e)); }  // Avisa si falla
   });                                                                 // Fin de clics en miniaturas
 
+  // ---------- Pagos dentro de la tarea ----------
+  function dibujarPagosTarea() {                                      // Lista de pagos en el modal de la tarea
+    const t = S.editando;                                             // Tarea abierta
+    const lista = t ? pagosDe(t.id) : [];                             // Sus pagos
+    $("#btn-pago-tarea").disabled = !t;                               // Solo tareas ya guardadas
+    $("#pagos-tarea-nota").textContent = t ? "" : "Guarda la tarea primero para poder registrar pagos."; // Explica por qué no se puede
+    $("#pagos-tarea-estado").textContent = lista.length ? `${lista.length} · ${fmtCOP(lista.reduce((a, p) => a + Number(p.monto), 0))}` : ""; // Cantidad y total
+    const actual = t ? tareaDe(t.id) : null;                          // Versión más reciente de la tarea
+    if (actual) form.elements.valor_abonado.value = conPuntos(actual.valor_abonado); // Abonado calculado al día
+    $("#pagos-tarea-lista").innerHTML = lista.map((p) =>              // Un renglón por pago
+      `<div class="pago-fila" data-pago-tarea="${p.id}"><b>${fmtCOP(p.monto)}</b><span>${esc(p.pagado_por)}</span>` + // Monto y quién
+      `<span class="sub">${p.fecha ? esc(fmtFecha(p.fecha)) : "sin fecha"}${p.medio ? " · " + esc(p.medio) : ""}${p.nota ? " · " + esc(p.nota) : ""}</span>${p.comprobante ? "<span>📎</span>" : ""}</div>` // Fecha, medio, nota y soporte
+    ).join("");                                                       // Une los renglones
+  }                                                                   // Fin de dibujarPagosTarea
+  $("#btn-pago-tarea").addEventListener("click", () => { if (S.editando) abrirPago(null, S.editando.id); }); // Registrar pago desde la tarea
+  $("#pagos-tarea-lista").addEventListener("click", (ev) => {         // Clic en un pago de la tarea
+    const f = ev.target.closest("[data-pago-tarea]");                 // Renglón tocado
+    if (f) abrirPago(S.pagos.find((x) => String(x.id) === f.dataset.pagoTarea)); // Lo edita
+  });                                                                 // Fin de clic
+
+  // ---------- Ventana de pago ----------
+  const formPago = $("#form-pago");                                   // Formulario del pago
+  let pagoEditando = null;                                            // Pago abierto (null = nuevo)
+  function abrirPago(pago, tareaId) {                                 // Abre la ventana para crear o editar un pago
+    pagoEditando = pago || null;                                      // Guarda cuál se edita
+    formPago.reset();                                                 // Limpia el formulario
+    formPago.elements.tarea_id.innerHTML = `<option value="">Elige la tarea…</option>` + S.tareas.slice().sort((a, b) => a.codigo.localeCompare(b.codigo)) // Lista de tareas…
+      .map((t) => `<option value="${t.id}">${esc(t.codigo)} · ${esc(t.proveedor ? t.proveedor + " – " : "")}${esc(t.tarea)}</option>`).join(""); // …con código y proveedor
+    const lista = C.PAGADORES;                                        // Personas predefinidas
+    formPago.elements.pagado_por.innerHTML = lista.map((n) => `<option>${esc(n)}</option>`).join("") + `<option value="__otro">Otra persona…</option>`; // Opciones de quién pagó
+    formPago.elements.medio.innerHTML = `<option value="">—</option>` + C.MEDIOS.map((m) => `<option>${esc(m)}</option>`).join(""); // Opciones de medio
+    const b = pago || { tarea_id: tareaId || "", fecha: hoyISO(), pagado_por: S.usuario ? nombreDe(S.usuario.email) : "Juan", medio: "Transferencia" }; // Valores por defecto
+    formPago.elements.tarea_id.value = b.tarea_id || "";              // Tarea
+    formPago.elements.monto.value = conPuntos(b.monto);               // Monto con puntos de miles
+    formPago.elements.fecha.value = b.fecha || "";                    // Fecha
+    const conocido = lista.includes(b.pagado_por);                    // ¿Es una persona de la lista?
+    formPago.elements.pagado_por.value = conocido ? b.pagado_por : "__otro"; // Selecciona o marca "otra persona"
+    formPago.elements.pagado_otro.value = conocido ? "" : (b.pagado_por || ""); // Nombre libre
+    $("#pago-otro-label").hidden = conocido;                          // Muestra el campo de nombre si aplica
+    formPago.elements.medio.value = b.medio || "";                    // Medio
+    formPago.elements.nota.value = b.nota || "";                      // Nota
+    const comp = pago && pago.comprobante;                            // Comprobante actual
+    $("#pago-comprobante-actual").innerHTML = comp ? `Actual: <a data-comprobante="${esc(comp.ruta)}" href="#">📎 ${esc(comp.nombre || "comprobante")}</a> · <label style="display:inline"><input type="checkbox" name="quitar_comprobante"> quitarlo</label> · o elige otro para reemplazarlo:` : (DEMO ? "Los comprobantes solo funcionan en la página publicada." : ""); // Comprobante actual o aviso
+    if (comp) enlazarComprobantes($("#pago-comprobante-actual"));     // Enlace temporal al comprobante
+    $("#pago-titulo").textContent = pago ? "Editar pago" : "Registrar pago"; // Título
+    const bEl = $("#btn-pago-eliminar");                              // Botón eliminar
+    bEl.hidden = !pago; bEl.dataset.confirmar = ""; bEl.textContent = "Eliminar"; // Solo al editar, sin confirmación pendiente
+    $("#modal-pago").showModal();                                     // Muestra la ventana
+  }                                                                   // Fin de abrirPago
+
+  formPago.elements.pagado_por.addEventListener("change", (ev) => {   // Cambio en "Pagado por"
+    $("#pago-otro-label").hidden = ev.target.value !== "__otro";      // Muestra el nombre libre solo para "otra persona"
+    if (ev.target.value === "__otro") formPago.elements.pagado_otro.focus(); // Pone el cursor ahí
+  });                                                                 // Fin del cambio
+  formPago.addEventListener("input", (ev) => {                        // Formato del monto mientras se escribe
+    if (ev.target.classList.contains("campo-dinero")) ev.target.value = conPuntos(aPesos(ev.target.value)); // Puntos de miles
+  });                                                                 // Fin del formato
+  formPago.addEventListener("submit", async (ev) => {                 // Guardar el pago
+    ev.preventDefault();                                              // Evita el cierre automático
+    const boton = formPago.querySelector("[type=submit]");            // Botón guardar
+    if (boton.disabled) return;                                       // Evita doble envío
+    const el = formPago.elements;                                     // Atajo a los campos
+    const quien = el.pagado_por.value === "__otro" ? el.pagado_otro.value.trim() : el.pagado_por.value; // Quién pagó
+    const monto = aPesos(el.monto.value);                             // Monto en pesos
+    if (!el.tarea_id.value) return aviso("Elige la tarea del pago");  // Validación: tarea
+    if (!monto) return aviso("Escribe el monto del pago");            // Validación: monto
+    if (!quien) return aviso("Escribe quién pagó");                   // Validación: quién
+    const p = { ...(pagoEditando || {}), tarea_id: Number(el.tarea_id.value), monto, fecha: el.fecha.value || null, pagado_por: quien, medio: el.medio.value || null, nota: el.nota.value.trim() || null }; // Pago a guardar
+    p.comprobanteAnterior = pagoEditando ? pagoEditando.comprobante : null; // Para borrar el anterior si se reemplaza
+    if (el.quitar_comprobante && el.quitar_comprobante.checked) p.comprobante = null; // Quitar comprobante
+    let archivo = el.comprobante.files[0] || null;                    // Comprobante nuevo
+    boton.disabled = true;                                            // Bloquea el botón
+    try {                                                             // Intenta guardar
+      if (archivo) archivo = await comprimir(archivo);                // Comprime si es foto
+      if (archivo && archivo.size > LIMITE_MB * 1024 * 1024) throw new Error(`el comprobante pesa más de ${LIMITE_MB} MB`); // Demasiado grande
+      await S.api.guardarPago(p, archivo);                            // Guarda en la base
+      $("#modal-pago").close();                                       // Cierra la ventana
+      aviso(pagoEditando ? "Pago actualizado" : `Pago de ${fmtCOP(monto)} registrado`); // Confirma
+      await cargar();                                                 // Recarga (abonados, balance, historial)
+    } catch (e) {                                                     // Si falla
+      aviso("No se pudo guardar el pago: " + (e.message || e));       // Avisa
+    } finally {                                                       // Siempre
+      boton.disabled = false;                                         // Libera el botón
+    }                                                                 // Fin del try
+  });                                                                 // Fin de guardar pago
+  $("#btn-pago-eliminar").addEventListener("click", async (ev) => {   // Eliminar pago (dos toques)
+    const b = ev.currentTarget;                                       // Botón
+    if (!b.dataset.confirmar) { b.dataset.confirmar = "1"; b.textContent = "¿Seguro? Toca de nuevo"; return; } // Primer toque: confirma
+    try {                                                             // Segundo toque: elimina
+      await S.api.eliminarPago(pagoEditando);                         // Elimina en la base
+      $("#modal-pago").close();                                       // Cierra
+      aviso("Pago eliminado");                                        // Confirma
+      await cargar();                                                 // Recarga
+    } catch (e) { aviso("No se pudo eliminar: " + (e.message || e)); } // Avisa si falla
+  });                                                                 // Fin de eliminar pago
+  document.querySelectorAll("[data-cerrar-pago]").forEach((b) => b.addEventListener("click", () => $("#modal-pago").close())); // Botones de cerrar
+
+  function descargarCSVPagos() {                                      // Descarga los movimientos filtrados para Excel
+    const celda = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;  // Encierra en comillas y escapa comillas
+    const filas = [["fecha", "codigo", "tarea", "proveedor", "monto", "pagado_por", "medio", "nota", "comprobante"].join(";")] // Encabezado
+      .concat(pagosFiltrados().map((p) => { const t = tareaDe(p.tarea_id) || {}; return [p.fecha, t.codigo, t.tarea, t.proveedor, p.monto, p.pagado_por, p.medio, p.nota, p.comprobante ? "sí" : ""].map(celda).join(";"); })); // Filas
+    const blob = new Blob(["﻿" + filas.join("\r\n")], { type: "text/csv;charset=utf-8" }); // BOM para que Excel lea tildes
+    const a = document.createElement("a");                            // Enlace temporal
+    a.href = URL.createObjectURL(blob);                               // Apunta al archivo
+    a.download = `boda_pagos_${new Date().toISOString().slice(0, 10)}.csv`; // Nombre con fecha
+    a.click();                                                        // Descarga
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);              // Libera memoria
+  }                                                                   // Fin de descargarCSVPagos
+
   function siguienteCodigo(grupo) {                                   // Siguiente código libre del grupo
     const letra = Object.keys(C.GRUPOS).find((k) => C.GRUPOS[k] === grupo) || "X"; // Letra del grupo
     const max = S.tareas.filter((t) => t.codigo.startsWith(letra + "-")) // Códigos de ese grupo
@@ -617,7 +830,7 @@
     if (boton.disabled) return;                                       // Evita doble envío
     const t = { ...(S.editando || {}) };                              // Parte de la tarea original (o vacía)
     CAMPOS.forEach((k) => { if (form.elements[k]) t[k] = vacioANulo(form.elements[k].value.trim()); }); // Lee cada campo
-    ["valor_total", "valor_abonado"].forEach((k) => { t[k] = aPesos(form.elements[k].value); }); // Convierte montos a número entero de pesos
+    t.valor_total = aPesos(form.elements.valor_total.value);          // Convierte el valor total a número entero de pesos (el abonado lo calcula la base)
     agregarItem();                                                    // Si quedó un ítem escrito sin agregar, lo agrega
     t.checklist = S.checklist.filter((i) => i.texto.trim()).map((i) => ({ texto: i.texto.trim(), hecho: !!i.hecho })); // Checklist limpio (sin ítems vacíos)
     if (t.depende_de) t.depende_de = t.depende_de.toUpperCase().split(/[,\s]+/).filter(Boolean).join(", "); // Normaliza dependencias
@@ -665,6 +878,14 @@
   vista.addEventListener("click", (ev) => {                           // Clics dentro de la vista
     if (ev.target.closest("select")) return;                          // Ignora clics en selectores
     if (ev.target.closest("#btn-csv")) return descargarCSV();         // Botón de CSV
+    if (ev.target.closest("#btn-nuevo-pago")) return abrirPago(null, null); // Registrar pago desde la pestaña Pagos
+    if (ev.target.closest("#btn-csv-pagos")) return descargarCSVPagos(); // Descargar pagos
+    const comp = ev.target.closest("[data-comprobante]");             // Enlace a un comprobante
+    if (comp) { if (comp.getAttribute("href") === "#") { ev.preventDefault(); aviso("Cargando el comprobante, intenta de nuevo en un momento"); } return; } // Deja abrir el enlace (o avisa si aún no está listo)
+    const fp = ev.target.closest("[data-filtrar-pagador]");           // Persona en "Quién ha pagado"
+    if (fp) { S.fpagos.pagador = fp.dataset.filtrarPagador; render(); document.querySelector("#fp-pagador").scrollIntoView({ behavior: "smooth", block: "center" }); return; } // Filtra sus movimientos
+    const pg = ev.target.closest("[data-pago]");                      // Fila de un movimiento
+    if (pg) return abrirPago(S.pagos.find((x) => String(x.id) === pg.dataset.pago)); // Edita el pago
     const g = ev.target.closest("[data-grupo]");                      // Fila de avance por grupo
     if (g) { S.filtros.grupo = g.dataset.grupo; $("#f-grupo").value = g.dataset.grupo; return irA("lista"); } // Abre la lista filtrada
     const el = ev.target.closest("[data-id]");                        // Elemento de tarea
@@ -672,6 +893,8 @@
   });                                                                 // Fin de clics
   vista.addEventListener("change", (ev) => {                          // Cambios en selectores de la vista
     if (ev.target.dataset.mover) cambiarEstado(ev.target.dataset.mover, ev.target.value); // Selector de estado (celular)
+    if (ev.target.id === "fp-pagador") { S.fpagos.pagador = ev.target.value; render(); } // Filtro de movimientos por persona
+    if (ev.target.id === "fp-mes") { S.fpagos.mes = ev.target.value; render(); } // Filtro de movimientos por mes
   });                                                                 // Fin de cambios
   vista.addEventListener("dragstart", (ev) => {                       // Empieza a arrastrar una tarjeta
     const t = ev.target.closest(".tarjeta");                          // Tarjeta arrastrada

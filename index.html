@@ -17,7 +17,7 @@
   <!-- Fuentes del Save the Date: Cormorant Garamond (títulos) y Tenor Sans (etiquetas) -->
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Tenor+Sans&display=swap" rel="stylesheet">
   <!-- Hoja de estilos propia -->
-  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
   <!-- ===== Pantalla de ingreso (se oculta al iniciar sesión) ===== -->
@@ -162,7 +162,18 @@
         <!-- Valor total en pesos -->
         <label>Valor total (COP)<input name="valor_total" type="text" inputmode="numeric" class="campo-dinero" placeholder="Ej.: 32.636.217"></label>
         <!-- Valor abonado en pesos -->
-        <label>Valor abonado (COP)<input name="valor_abonado" type="text" inputmode="numeric" class="campo-dinero" placeholder="Ej.: 7.225.000"></label>
+        <label>Valor abonado (COP) · suma de pagos<input name="valor_abonado" type="text" readonly tabindex="-1" class="campo-calculado" title="Se calcula con los pagos registrados abajo"></label>
+        <!-- Pagos de esta tarea (quién, cuándo, cuánto) -->
+        <div class="ancho pagos-tarea">
+          <!-- Título con la cantidad de pagos -->
+          <span class="checklist-titulo">Pagos de esta tarea <small id="pagos-tarea-estado"></small></span>
+          <!-- Lista de pagos registrados -->
+          <div id="pagos-tarea-lista"></div>
+          <!-- Botón para registrar un pago nuevo -->
+          <button type="button" id="btn-pago-tarea" class="btn">＋ Registrar pago</button>
+          <!-- Nota: por qué no se puede registrar (tarea nueva) -->
+          <p id="pagos-tarea-nota" class="sub"></p>
+        </div>
         <!-- Observaciones (ancho completo, varias líneas) -->
         <label class="ancho">Observaciones<textarea name="observaciones" rows="3"></textarea></label>
         <!-- Checklist de subactividades (después de Observaciones) -->
@@ -207,6 +218,57 @@
     </form>
   </dialog>
 
+  <!-- ===== Ventana para registrar o editar un pago ===== -->
+  <dialog id="modal-pago" class="modal">
+    <!-- Formulario del pago -->
+    <form id="form-pago" method="dialog">
+      <!-- Cabecera -->
+      <header class="modal-cabecera">
+        <!-- Título dinámico -->
+        <h2 id="pago-titulo">Registrar pago</h2>
+        <!-- Cerrar -->
+        <button type="button" class="btn-link" data-cerrar-pago aria-label="Cerrar">✕</button>
+      </header>
+      <!-- Campos -->
+      <div class="modal-cuerpo">
+        <!-- Tarea a la que corresponde el pago -->
+        <label class="ancho">Tarea<select name="tarea_id" required></select></label>
+        <!-- Monto en pesos -->
+        <label>Monto (COP)<input name="monto" type="text" inputmode="numeric" class="campo-dinero" required placeholder="Ej.: 1.500.000"></label>
+        <!-- Fecha del pago -->
+        <label>Fecha<input name="fecha" type="date"></label>
+        <!-- Quién pagó -->
+        <label>Pagado por<select name="pagado_por" required></select></label>
+        <!-- Nombre cuando es otra persona -->
+        <label id="pago-otro-label" hidden>¿Quién?<input name="pagado_otro" placeholder="Ej.: Tía Marta"></label>
+        <!-- Medio de pago -->
+        <label>Medio<select name="medio"><option value="">—</option></select></label>
+        <!-- Nota libre -->
+        <label class="ancho">Nota<input name="nota" placeholder="Ej.: Segundo abono según contrato"></label>
+        <!-- Comprobante (foto o PDF) -->
+        <div class="ancho comprobante">
+          <!-- Título -->
+          <span class="checklist-titulo">Comprobante (opcional)</span>
+          <!-- Comprobante actual, si existe -->
+          <p id="pago-comprobante-actual" class="sub"></p>
+          <!-- Selector de archivo: en celular permite tomar la foto -->
+          <input type="file" name="comprobante" accept="image/*,application/pdf">
+        </div>
+      </div>
+      <!-- Botones -->
+      <footer class="modal-pie">
+        <!-- Eliminar (solo al editar) -->
+        <button type="button" id="btn-pago-eliminar" class="btn btn-peligro">Eliminar</button>
+        <!-- Espaciador -->
+        <span class="espacio"></span>
+        <!-- Cancelar -->
+        <button type="button" class="btn" data-cerrar-pago>Cancelar</button>
+        <!-- Guardar -->
+        <button type="submit" class="btn btn-primario">Guardar pago</button>
+      </footer>
+    </form>
+  </dialog>
+
   <!-- Lista de categorías sugeridas para el campo Categoría -->
   <datalist id="lista-categorias"></datalist>
   <!-- Aviso breve tipo "Guardado" -->
@@ -215,10 +277,10 @@
   <!-- Librería oficial de Supabase (cliente JavaScript v2) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- Configuración (URL y llave de Supabase, fecha, grupos) -->
-  <script src="config.js?v=11"></script>
+  <script src="config.js?v=12"></script>
   <!-- Datos iniciales para el modo demostración -->
-  <script src="datos-iniciales.js?v=11"></script>
+  <script src="datos-iniciales.js?v=12"></script>
   <!-- Lógica de la aplicación -->
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
