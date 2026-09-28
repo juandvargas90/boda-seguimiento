@@ -17,7 +17,7 @@
   <!-- Fuentes del Save the Date: Cormorant Garamond (títulos) y Tenor Sans (etiquetas) -->
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Tenor+Sans&display=swap" rel="stylesheet">
   <!-- Hoja de estilos propia -->
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <!-- ===== Pantalla de ingreso (se oculta al iniciar sesión) ===== -->
@@ -177,6 +177,17 @@
             <button type="button" id="checklist-agregar" class="btn">Agregar</button>
           </div>
         </div>
+        <!-- Fotos y archivos (después del checklist) -->
+        <div class="ancho adjuntos">
+          <!-- Título con la cantidad de adjuntos -->
+          <span class="checklist-titulo">Fotos y archivos <small id="adjuntos-estado"></small></span>
+          <!-- Miniaturas de las fotos y fichas de los PDF -->
+          <div id="adjuntos-lista" class="adjuntos-lista"></div>
+          <!-- Botón para elegir o tomar fotos (en celular ofrece cámara o galería) -->
+          <label id="adjuntos-boton" class="btn btn-adjuntar">＋ Agregar foto o PDF<input type="file" id="adjuntos-input" accept="image/*,application/pdf" multiple hidden></label>
+          <!-- Nota: progreso de subida o por qué no se puede adjuntar -->
+          <p id="adjuntos-nota" class="sub"></p>
+        </div>
         <!-- Información de la última modificación -->
         <p id="modal-meta" class="modal-meta ancho"></p>
       </div>
@@ -204,10 +215,10 @@
   <!-- Librería oficial de Supabase (cliente JavaScript v2) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <!-- Configuración (URL y llave de Supabase, fecha, grupos) -->
-  <script src="config.js?v=10"></script>
+  <script src="config.js?v=11"></script>
   <!-- Datos iniciales para el modo demostración -->
-  <script src="datos-iniciales.js?v=10"></script>
+  <script src="datos-iniciales.js?v=11"></script>
   <!-- Lógica de la aplicación -->
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>

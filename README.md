@@ -31,6 +31,7 @@ Los cambios de una persona le aparecen a la otra en segundos, sin recargar.
 | `supabase/02_datos_iniciales.sql` | Carga las 47 tareas |
 | `supabase/03_miembros.sql` | Autoriza los correos de Ana y Juan |
 | `supabase/04_checklist.sql` | Agrega el checklist de subactividades a cada tarea |
+| `supabase/05_adjuntos.sql` | Fotos y archivos por tarea: columna, carpeta privada y seguridad |
 
 ## Puesta en marcha (una sola vez)
 
@@ -51,6 +52,7 @@ Sin datos de Supabase en `config.js`, la página abre en **modo demostración** 
 - Cambiar estado: arrastrar la tarjeta en el Tablero o abrir la tarea.
 - Registrar un pago: abrir la tarea y actualizar **Valor abonado**.
 - Checklist: dentro de cada tarea, después de Observaciones, se agregan ítems (Enter), se marcan y se quitan; se guardan con **Guardar**. El avance aparece como "☑ 2/5" en el tablero y la lista.
+- Fotos: dentro de cada tarea ya guardada, **＋ Agregar foto o PDF** (en celular permite tomar la foto). Se suben al instante (las fotos se reducen a 1600 px); tocar una miniatura la abre en grande; la ✕ la quita (pide confirmación). Máximo 10 MB por archivo.
 - Respaldo: en **Lista → Descargar CSV (Excel)**.
 
 ## Cambiar grupos o fechas

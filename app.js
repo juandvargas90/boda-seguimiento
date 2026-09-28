@@ -24,7 +24,7 @@
   const ETIQUETAS = { tarea: "nombre", grupo: "grupo", categoria: "categoría", responsable: "responsable", lider: "líder", // Nombres legibles de campos…
     prioridad: "prioridad", fecha_limite: "fecha límite", estado: "estado", proveedor: "proveedor", valor_total: "valor total", // …para describir…
     valor_abonado: "abono", fecha_proximo_pago: "próximo pago", proximo_paso: "próximo paso", depende_de: "dependencias",     // …los cambios…
-    observaciones: "observaciones", codigo: "código", checklist: "checklist" };                                                                        // …en el historial
+    observaciones: "observaciones", codigo: "código", checklist: "checklist", adjuntos: "fotos y archivos" };                                                                        // …en el historial
   const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]; // Meses abreviados
 
   // ---------- Utilidades ----------
@@ -38,6 +38,7 @@
   const vacioANulo = (v) => (v === "" || v === undefined ? null : v);                           // Convierte vacío en null
   const aPesos = (txt) => { const d = String(txt ?? "").replace(/[.,]\d{1,2}$/, "").replace(/\D/g, ""); return d ? Number(d) : null; }; // "32.636.217" o "$ 1,450,000" → 32636217 (quita puntos, comas, $ y centavos)
   const lista = (t) => (Array.isArray(t && t.checklist) ? t.checklist : []); // Checklist de una tarea (siempre una lista)
+  const adjuntosDe = (t) => (Array.isArray(t && t.adjuntos) ? t.adjuntos : []); // Fotos y archivos de una tarea (siempre una lista)
   const progreso = (t) => { const l = lista(t); return { hechos: l.filter((i) => i.hecho).length, total: l.length }; }; // Ítems hechos y total
   const igual = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null); // Compara valores, incluidas listas
   const conPuntos = (n) => (n === null || n === undefined || n === "") ? "" : Number(n).toLocaleString("es-CO", { maximumFractionDigits: 0 }); // 32636217 → "32.636.217"
@@ -115,7 +116,10 @@
         hist.unshift({ tarea_codigo: t.codigo, tarea_titulo: t.tarea, accion: "eliminó", usuario: "demo", fecha: new Date().toISOString() }); // Anota
         persistir();                                                  // Guarda en el navegador
       },                                                              // Fin de eliminar
-      escuchar() { /* en demo no hay otros usuarios */ }              // Sin tiempo real
+      escuchar() { /* en demo no hay otros usuarios */ },             // Sin tiempo real
+      async adjuntar() { throw new Error("Las fotos solo funcionan en la página publicada"); }, // Sin almacenamiento en demo
+      async quitarAdjunto() { throw new Error("Las fotos solo funcionan en la página publicada"); }, // Sin almacenamiento en demo
+      async urls() { return {}; }                                    // Sin enlaces en demo
     };                                                                // Fin de métodos
   }                                                                   // Fin de apiDemo
 
@@ -152,7 +156,39 @@
       async eliminar(t) {                                             // Elimina una tarea
         const { error } = await cli.from("tareas").delete().eq("id", t.id); // Borra por id
         if (error) throw error;                                       // Propaga el error
+        const rutas = adjuntosDe(t).map((a) => a.ruta);               // Archivos que tenía la tarea
+        if (rutas.length) await cli.storage.from("adjuntos").remove(rutas); // Los borra del almacenamiento (si falla, quedan huérfanos pero no visibles)
       },                                                              // Fin de eliminar
+      async adjuntar(t, archivo) {                                    // Sube un archivo y lo agrega a la tarea
+        const ext = ((archivo.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg"); // Extensión limpia
+        const ruta = `${t.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`; // Ruta única: carpeta por tarea
+        const { error: e1 } = await cli.storage.from("adjuntos").upload(ruta, archivo, { contentType: archivo.type, upsert: false }); // Sube el archivo
+        if (e1) throw e1;                                             // Propaga el error
+        const nuevo = { ruta, nombre: archivo.name, tipo: archivo.type, tamano: archivo.size, subido_por: S.usuario ? S.usuario.email : null, fecha: new Date().toISOString() }; // Datos del adjunto
+        const { data: actual, error: e2 } = await cli.from("tareas").select("adjuntos").eq("id", t.id).single(); // Lee la lista actual (por si el otro también subió algo)
+        if (e2) { await cli.storage.from("adjuntos").remove([ruta]); throw e2; } // Si falla, deshace la subida
+        const listaNueva = [...adjuntosDe(actual), nuevo];            // Agrega el nuevo al final
+        const { error: e3 } = await cli.from("tareas").update({ adjuntos: listaNueva }).eq("id", t.id); // Guarda solo la lista de adjuntos
+        if (e3) { await cli.storage.from("adjuntos").remove([ruta]); throw e3; } // Si falla, deshace la subida
+        return listaNueva;                                            // Devuelve la lista actualizada
+      },                                                              // Fin de adjuntar
+      async quitarAdjunto(t, ruta) {                                  // Quita un archivo de la tarea
+        const { data: actual, error: e1 } = await cli.from("tareas").select("adjuntos").eq("id", t.id).single(); // Lista actual
+        if (e1) throw e1;                                             // Propaga el error
+        const listaNueva = adjuntosDe(actual).filter((a) => a.ruta !== ruta); // Lista sin ese archivo
+        const { error: e2 } = await cli.from("tareas").update({ adjuntos: listaNueva }).eq("id", t.id); // Guarda la lista
+        if (e2) throw e2;                                             // Propaga el error
+        await cli.storage.from("adjuntos").remove([ruta]);            // Borra el archivo del almacenamiento
+        return listaNueva;                                            // Devuelve la lista actualizada
+      },                                                              // Fin de quitarAdjunto
+      async urls(rutas) {                                             // Enlaces temporales (1 hora) para ver archivos privados
+        if (!rutas.length) return {};                                 // Sin archivos, nada que pedir
+        const { data, error } = await cli.storage.from("adjuntos").createSignedUrls(rutas, 3600); // Pide los enlaces
+        if (error) throw error;                                       // Propaga el error
+        const mapa = {};                                              // Ruta → enlace
+        (data || []).forEach((d) => { if (d.signedUrl) mapa[d.path] = d.signedUrl; }); // Llena el mapa
+        return mapa;                                                  // Devuelve el mapa
+      },                                                              // Fin de urls
       escuchar(alCambiar) {                                           // Se suscribe a cambios en tiempo real
         cli.channel("cambios-boda")                                   // Canal propio
           .on("postgres_changes", { event: "*", schema: "public", table: "tareas" }, alCambiar) // Cualquier cambio en tareas
@@ -212,6 +248,10 @@
     if (!p.total) return "";                                          // Sin checklist, sin etiqueta
     return `<span class="chip${p.hechos === p.total ? " terminado" : ""}" title="Checklist">☑ ${p.hechos}/${p.total}</span>`; // Verde si está completo
   }                                                                   // Fin de chipChecklist
+  function chipAdjuntos(t) {                                          // Etiqueta "📎 2" con la cantidad de adjuntos
+    const n = adjuntosDe(t).length;                                   // Cantidad de fotos y archivos
+    return n ? `<span class="chip" title="Fotos y archivos">📎 ${n}</span>` : ""; // Solo si hay
+  }                                                                   // Fin de chipAdjuntos
   function chipBloqueo(t) {                                           // Etiqueta "espera a…"
     const b = bloqueadaPor(t);                                        // Dependencias pendientes
     return b.length ? `<span class="chip bloqueada" title="Depende de tareas no terminadas">⏳ ${esc(b.join(", "))}</span>` : ""; // Solo si hay
@@ -290,7 +330,7 @@
       `<span class="codigo">${esc(t.codigo)} · ${esc(t.categoria || t.grupo)}</span>` + // Código y categoría
       `<div class="titulo">${esc(t.tarea)}</div>` +                   // Nombre
       `<div class="meta"><span class="chip">${esc(t.responsable)}</span>${chipFecha(t)}` + // Responsable y fecha
-      `${t.prioridad === "Alta" ? `<span class="chip alta">Alta</span>` : ""}${chipChecklist(t)}${chipBloqueo(t)}</div>` + // Prioridad y bloqueo
+      `${t.prioridad === "Alta" ? `<span class="chip alta">Alta</span>` : ""}${chipChecklist(t)}${chipAdjuntos(t)}${chipBloqueo(t)}</div>` + // Prioridad y bloqueo
       `${t.proximo_paso ? `<div class="paso">→ ${esc(t.proximo_paso)}</div>` : ""}` + // Próximo paso
       `<div class="mover"><select data-mover="${t.id}" aria-label="Cambiar estado">${C.ESTADOS.map((e) => `<option${e === t.estado ? " selected" : ""}>${esc(e)}</option>`).join("")}</select></div>` + // Selector (celular)
       `</article>`;                                                   // Cierra la tarjeta
@@ -307,7 +347,7 @@
       h += `<table class="tabla"><thead><tr><th>Código</th><th>Tarea</th><th>Responsable</th><th>Fecha límite</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody>`; // Encabezados
       h += G.map((t) => `<tr data-id="${t.id}">` +                    // Fila clicable
         `<td class="codigo">${esc(t.codigo)}</td>` +                  // Código
-        `<td><b>${esc(t.tarea)}</b><span class="sub">${esc(t.categoria || "")}${t.proximo_paso ? " · → " + esc(t.proximo_paso) : ""}</span>${chipChecklist(t)}${chipBloqueo(t)}</td>` + // Nombre, categoría, próximo paso y checklist
+        `<td><b>${esc(t.tarea)}</b><span class="sub">${esc(t.categoria || "")}${t.proximo_paso ? " · → " + esc(t.proximo_paso) : ""}</span>${chipChecklist(t)}${chipAdjuntos(t)}${chipBloqueo(t)}</td>` + // Nombre, categoría, próximo paso y checklist
         `<td data-l="Responsable">${esc(t.responsable)}${t.lider ? `<span class="sub">lidera ${esc(t.lider)}</span>` : ""}</td>` + // Responsable y líder
         `<td data-l="Fecha">${chipFecha(t)}</td>` +                   // Fecha con semáforo
         `<td data-l="Estado">${chipEstado(t.estado)}</td>` +          // Estado
@@ -424,6 +464,7 @@
     S.checklist = lista(base).map((i) => ({ texto: i.texto, hecho: !!i.hecho })); // Copia editable del checklist
     $("#checklist-texto").value = "";                                 // Limpia el campo de nuevo ítem
     dibujarChecklist();                                               // Dibuja los ítems
+    dibujarAdjuntos();                                                // Dibuja fotos y archivos
     $("#modal-titulo").textContent = t ? `${t.codigo} · Editar tarea` : "Nueva tarea"; // Título
     $("#btn-eliminar").hidden = !t;                                   // Eliminar solo al editar
     $("#confirmar-eliminar").hidden = true;                           // Oculta la confirmación
@@ -478,6 +519,91 @@
     dibujarChecklist();                                               // Redibuja
   });                                                                 // Fin de quitar
 
+  // ---------- Fotos y archivos dentro del modal ----------
+  const LIMITE_MB = 10;                                               // Tamaño máximo por archivo (igual al de Supabase)
+  let urlsAdjuntos = {};                                              // Enlaces temporales ya pedidos (ruta → enlace)
+
+  async function comprimir(archivo) {                                 // Reduce fotos grandes antes de subirlas
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(archivo.type)) return archivo; // PDF y GIF se suben tal cual
+    const url = URL.createObjectURL(archivo);                         // Enlace local a la foto
+    try {                                                             // Intenta comprimir
+      const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; }); // Carga la foto
+      const escala = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)); // Lado mayor a máximo 1600 px
+      const lienzo = document.createElement("canvas");                // Lienzo para redibujar
+      lienzo.width = Math.round(img.naturalWidth * escala);           // Ancho nuevo
+      lienzo.height = Math.round(img.naturalHeight * escala);         // Alto nuevo
+      lienzo.getContext("2d").drawImage(img, 0, 0, lienzo.width, lienzo.height); // Dibuja la foto reducida
+      const blob = await new Promise((ok) => lienzo.toBlob(ok, "image/jpeg", 0.82)); // La guarda como JPG de buena calidad
+      if (!blob || blob.size >= archivo.size) return archivo;         // Si no ganó nada, deja la original
+      return new File([blob], archivo.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" }); // Foto comprimida
+    } catch (e) {                                                     // Si el navegador no puede leerla (p. ej. HEIC en Chrome)
+      return archivo;                                                 // Sube la original
+    } finally {                                                       // Siempre
+      URL.revokeObjectURL(url);                                       // Libera memoria
+    }                                                                 // Fin del try
+  }                                                                   // Fin de comprimir
+
+  async function dibujarAdjuntos() {                                  // Dibuja las miniaturas en el modal
+    const t = S.editando;                                             // Tarea abierta
+    const lista = adjuntosDe(t);                                      // Sus adjuntos
+    const input = $("#adjuntos-input");                               // Selector de archivos
+    const nota = $("#adjuntos-nota");                                 // Nota explicativa
+    input.disabled = !t || DEMO;                                      // Solo se puede adjuntar a tareas ya guardadas y en la página publicada
+    $("#adjuntos-boton").classList.toggle("deshabilitado", input.disabled); // Aspecto de botón inactivo
+    nota.textContent = !t ? "Guarda la tarea primero para poder adjuntar fotos." : DEMO ? "Las fotos solo funcionan en la página publicada." : ""; // Explica por qué no se puede
+    $("#adjuntos-estado").textContent = lista.length ? String(lista.length) : ""; // Cantidad junto al título
+    const cont = $("#adjuntos-lista");                                // Contenedor de miniaturas
+    cont.innerHTML = lista.map((a) => {                               // Una ficha por archivo
+      const esImagen = /^image\//.test(a.tipo || "");                 // ¿Es foto?
+      const cuerpo = esImagen ? `<img alt="${esc(a.nombre)}" data-foto="${esc(a.ruta)}">` : `<span class="adjunto-doc">📄<small>${esc(a.nombre)}</small></span>`; // Miniatura o ícono de PDF
+      return `<div class="adjunto"><a data-abrir="${esc(a.ruta)}" href="#" title="${esc(a.nombre)}">${cuerpo}</a>` + // Enlace para abrir en grande
+        `<button type="button" class="adjunto-quitar" data-quitar-adj="${esc(a.ruta)}" aria-label="Quitar archivo">✕</button></div>`; // Botón quitar
+    }).join("");                                                      // Une las fichas
+    const faltan = lista.map((a) => a.ruta).filter((r) => !urlsAdjuntos[r]); // Enlaces que aún no se tienen
+    try { Object.assign(urlsAdjuntos, await S.api.urls(faltan)); } catch (e) { /* sin enlaces, se verá sin miniatura */ } // Pide los enlaces
+    cont.querySelectorAll("[data-foto]").forEach((img) => { const u = urlsAdjuntos[img.dataset.foto]; if (u) img.src = u; }); // Pone las miniaturas
+    cont.querySelectorAll("[data-abrir]").forEach((a) => { const u = urlsAdjuntos[a.dataset.abrir]; if (u) { a.href = u; a.target = "_blank"; a.rel = "noopener"; } }); // Enlaces para ver en grande
+  }                                                                   // Fin de dibujarAdjuntos
+
+  function actualizarAdjuntosLocal(listaNueva) {                      // Refleja la lista nueva en pantalla sin recargar todo
+    S.editando.adjuntos = listaNueva;                                 // En la tarea abierta
+    const t = S.tareas.find((x) => x.id === S.editando.id);           // En la lista general
+    if (t) t.adjuntos = listaNueva;                                   // Actualiza
+    render();                                                         // Redibuja (etiqueta 📎)
+    dibujarAdjuntos();                                                // Redibuja miniaturas
+  }                                                                   // Fin de actualizarAdjuntosLocal
+
+  $("#adjuntos-input").addEventListener("change", async (ev) => {     // Al elegir fotos o archivos
+    const archivos = [...ev.target.files];                            // Archivos elegidos
+    ev.target.value = "";                                             // Permite volver a elegir el mismo archivo
+    if (!archivos.length || !S.editando) return;                      // Nada que hacer
+    const estado = $("#adjuntos-nota");                               // Texto de progreso
+    for (let i = 0; i < archivos.length; i++) {                       // Uno por uno
+      estado.textContent = `Subiendo ${i + 1} de ${archivos.length}…`; // Progreso
+      try {                                                           // Intenta subir
+        const archivo = await comprimir(archivos[i]);                 // Comprime si es foto
+        if (archivo.size > LIMITE_MB * 1024 * 1024) throw new Error(`"${archivo.name}" pesa más de ${LIMITE_MB} MB`); // Demasiado grande
+        actualizarAdjuntosLocal(await S.api.adjuntar(S.editando, archivo)); // Sube y actualiza la pantalla
+      } catch (e) {                                                   // Si falla
+        aviso("No se pudo subir: " + (e.message || e));               // Avisa
+      }                                                               // Fin del try
+    }                                                                 // Fin del ciclo
+    estado.textContent = "";                                          // Limpia el progreso
+    aviso(archivos.length > 1 ? "Archivos agregados" : "Archivo agregado"); // Confirma
+  });                                                                 // Fin de elegir archivos
+
+  $("#adjuntos-lista").addEventListener("click", async (ev) => {      // Clics en las miniaturas
+    const abrir = ev.target.closest("[data-abrir]");                  // ¿Tocó una miniatura?
+    if (abrir && abrir.getAttribute("href") === "#") { ev.preventDefault(); aviso("Cargando el archivo, intenta de nuevo en un momento"); return; } // Enlace aún no listo
+    const b = ev.target.closest("[data-quitar-adj]");                 // ¿Tocó quitar?
+    if (!b) return;                                                   // Nada más que hacer
+    if (!b.dataset.confirmar) { b.dataset.confirmar = "1"; b.textContent = "¿Quitar?"; b.classList.add("confirmar"); return; } // Primer toque: pide confirmación
+    try {                                                             // Segundo toque: quita
+      actualizarAdjuntosLocal(await S.api.quitarAdjunto(S.editando, b.dataset.quitarAdj)); // Quita y actualiza la pantalla
+      aviso("Archivo quitado");                                       // Confirma
+    } catch (e) { aviso("No se pudo quitar: " + (e.message || e)); }  // Avisa si falla
+  });                                                                 // Fin de clics en miniaturas
+
   function siguienteCodigo(grupo) {                                   // Siguiente código libre del grupo
     const letra = Object.keys(C.GRUPOS).find((k) => C.GRUPOS[k] === grupo) || "X"; // Letra del grupo
     const max = S.tareas.filter((t) => t.codigo.startsWith(letra + "-")) // Códigos de ese grupo
@@ -524,8 +650,8 @@
   function descargarCSV() {                                           // Descarga las tareas filtradas para Excel
     const cols = ["codigo", "grupo", "categoria", "tarea", "responsable", "lider", "prioridad", "fecha_limite", "estado", "proveedor", "valor_total", "valor_abonado", "fecha_proximo_pago", "proximo_paso", "depende_de", "observaciones"]; // Columnas
     const celda = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;  // Encierra en comillas y escapa comillas
-    const filas = [cols.concat("semaforo", "saldo", "checklist").join(";")]        // Encabezado (punto y coma para Excel en español)
-      .concat(filtradas().map((t) => cols.map((c) => celda(t[c])).concat(celda(semaforo(t)), celda(saldo(t)), celda(progreso(t).total ? `${progreso(t).hechos}/${progreso(t).total}` : "")).join(";"))); // Filas
+    const filas = [cols.concat("semaforo", "saldo", "checklist", "adjuntos").join(";")]        // Encabezado (punto y coma para Excel en español)
+      .concat(filtradas().map((t) => cols.map((c) => celda(t[c])).concat(celda(semaforo(t)), celda(saldo(t)), celda(progreso(t).total ? `${progreso(t).hechos}/${progreso(t).total}` : ""), celda(adjuntosDe(t).length || "")).join(";"))); // Filas
     const blob = new Blob(["﻿" + filas.join("\r\n")], { type: "text/csv;charset=utf-8" }); // BOM para que Excel lea tildes
     const a = document.createElement("a");                            // Enlace temporal
     a.href = URL.createObjectURL(blob);                               // Apunta al archivo
