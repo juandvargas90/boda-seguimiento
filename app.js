@@ -128,10 +128,18 @@
         if (error) throw error;                                       // Propaga el error
         return data;                                                  // Devuelve las filas
       },                                                              // Fin de historial
-      async guardar(t) {                                              // Crea o edita
+      async guardar(t, original) {                                    // Crea o edita (original = cómo estaba antes de editar)
+        let datos = fila(t);                                          // Por defecto, todos los campos editables
+        if (t.id && original) {                                       // Si es edición y se conoce la versión anterior…
+          const antes = fila(original);                               // …campos como estaban al abrir la tarea
+          const nuevo = fila(t);                                      // Campos como quedaron al guardar
+          datos = {};                                                 // Solo se enviarán los campos cambiados
+          CAMPOS.forEach((k) => { if (String(nuevo[k] ?? "") !== String(antes[k] ?? "")) datos[k] = nuevo[k]; }); // Compara campo por campo
+          if (!Object.keys(datos).length) return t;                   // Nada cambió: no se escribe
+        }                                                             // Así no se pisan cambios que hizo la otra persona en otros campos
         const consulta = t.id                                         // Si tiene id…
-          ? cli.from("tareas").update(fila(t)).eq("id", t.id)         // …actualiza esa fila
-          : cli.from("tareas").insert(fila(t));                       // …si no, inserta una nueva
+          ? cli.from("tareas").update(datos).eq("id", t.id)           // …actualiza solo esos campos
+          : cli.from("tareas").insert(datos);                         // …si no, inserta una nueva
         const { data, error } = await consulta.select().single();     // Ejecuta y devuelve la fila guardada
         if (error) throw error;                                       // Propaga el error
         return data;                                                  // Devuelve la fila
@@ -380,7 +388,7 @@
     t.estado = estado;                                                // Cambio optimista en pantalla
     render();                                                         // Redibuja de inmediato
     try {                                                             // Intenta guardar
-      await S.api.guardar({ ...t });                                  // Guarda en la base
+      await S.api.guardar({ ...t }, { ...t, estado: anterior });      // Guarda solo el cambio de estado
       aviso(`${t.codigo} → ${estado}`);                               // Confirma
       await cargar();                                                 // Recarga datos
     } catch (e) {                                                     // Si falla
@@ -422,7 +430,7 @@
     if (!S.editando) t.codigo = siguienteCodigo(t.grupo);             // Código para tareas nuevas
     boton.disabled = true;                                            // Bloquea el botón
     try {                                                             // Intenta guardar
-      await S.api.guardar(t);                                         // Guarda
+      await S.api.guardar(t, S.editando);                             // Guarda solo los campos que cambiaron
       $("#modal").close();                                            // Cierra el modal
       aviso(S.editando ? "Cambios guardados" : `Tarea ${t.codigo} creada`); // Confirma
       await cargar();                                                 // Recarga
@@ -540,7 +548,8 @@
     S.miembros = data;                                                // Guarda miembros
     await mostrarApp();                                               // Entra
     S.api.escuchar(programarRecarga);                                 // Escucha cambios en tiempo real
-    setInterval(() => { if (document.visibilityState === "visible") cargar(); }, 120000); // Respaldo: recarga cada 2 min
+    setInterval(() => { if (document.visibilityState === "visible") cargar(); }, 60000); // Respaldo: recarga cada minuto
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") cargar(); }); // Al volver a la página (p. ej. desbloquear el celular), recarga al instante
   }                                                                   // Fin de entrar
 
   function pasoCodigo(mostrar) {                                      // Cambia entre el paso del correo y el del código
