@@ -31,6 +31,8 @@ create table if not exists public.tareas (            -- Crea la tabla de tareas
   proximo_paso       text,                            -- Lo que falta por hacer
   depende_de         text,                            -- Códigos de tareas previas, separados por coma
   observaciones      text,                            -- Notas libres
+  checklist          jsonb not null default '[]'::jsonb                -- Subactividades: [{ "texto": "...", "hecho": false }]
+                     check (jsonb_typeof(checklist) = 'array'),         -- Siempre debe ser una lista
   creado_en          timestamptz not null default now(),                -- Fecha de creación
   actualizado_en     timestamptz not null default now(),                -- Fecha de la última modificación
   actualizado_por    text                             -- Correo de quien hizo la última modificación
