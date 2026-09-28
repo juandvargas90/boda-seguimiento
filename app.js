@@ -36,6 +36,8 @@
   const fmtCOP = (n) => (n === null || n === undefined || n === "") ? "–" : "$" + Number(n).toLocaleString("es-CO", { maximumFractionDigits: 0 }); // Pesos colombianos
   const clase = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "-"); // Texto → clase CSS ("En proceso" → "en-proceso")
   const vacioANulo = (v) => (v === "" || v === undefined ? null : v);                           // Convierte vacío en null
+  const aPesos = (txt) => { const d = String(txt ?? "").replace(/[.,]\d{1,2}$/, "").replace(/\D/g, ""); return d ? Number(d) : null; }; // "32.636.217" o "$ 1,450,000" → 32636217 (quita puntos, comas, $ y centavos)
+  const conPuntos = (n) => (n === null || n === undefined || n === "") ? "" : Number(n).toLocaleString("es-CO", { maximumFractionDigits: 0 }); // 32636217 → "32.636.217"
 
   function semaforo(t) {                                              // Calcula el semáforo de una tarea
     if (t.estado === "Terminado") return "Terminado";                 // Las terminadas no se evalúan
@@ -400,11 +402,17 @@
 
   // ---------- Modal de edición ----------
   const form = $("#form-tarea");                                      // Formulario del modal
+  form.addEventListener("input", (ev) => {                            // Mientras se escribe en el formulario
+    if (!ev.target.classList.contains("campo-dinero")) return;        // Solo en los campos de dinero
+    const n = aPesos(ev.target.value);                                // Lee el número escrito
+    ev.target.value = conPuntos(n);                                   // Lo muestra con puntos de miles
+  });                                                                 // Fin del formateo en vivo
   function abrirModal(t) {                                            // Abre el modal para editar o crear
     S.editando = t || null;                                           // Guarda la tarea en edición
     form.reset();                                                     // Limpia el formulario
     const base = t || { estado: "No iniciado", prioridad: "Media", responsable: "Ambos", grupo: S.filtros.grupo || Object.values(C.GRUPOS)[0] }; // Valores por defecto
     CAMPOS.forEach((k) => { if (form.elements[k]) form.elements[k].value = base[k] ?? ""; }); // Llena cada campo
+    ["valor_total", "valor_abonado"].forEach((k) => { form.elements[k].value = conPuntos(base[k]); }); // Muestra montos con puntos de miles
     $("#modal-titulo").textContent = t ? `${t.codigo} · Editar tarea` : "Nueva tarea"; // Título
     $("#btn-eliminar").hidden = !t;                                   // Eliminar solo al editar
     $("#confirmar-eliminar").hidden = true;                           // Oculta la confirmación
@@ -425,7 +433,7 @@
     if (boton.disabled) return;                                       // Evita doble envío
     const t = { ...(S.editando || {}) };                              // Parte de la tarea original (o vacía)
     CAMPOS.forEach((k) => { if (form.elements[k]) t[k] = vacioANulo(form.elements[k].value.trim()); }); // Lee cada campo
-    ["valor_total", "valor_abonado"].forEach((k) => { if (t[k] !== null) t[k] = Number(t[k]); }); // Convierte montos a número
+    ["valor_total", "valor_abonado"].forEach((k) => { t[k] = aPesos(form.elements[k].value); }); // Convierte montos a número entero de pesos
     if (t.depende_de) t.depende_de = t.depende_de.toUpperCase().split(/[,\s]+/).filter(Boolean).join(", "); // Normaliza dependencias
     if (!S.editando) t.codigo = siguienteCodigo(t.grupo);             // Código para tareas nuevas
     boton.disabled = true;                                            // Bloquea el botón
