@@ -15,6 +15,8 @@ Página privada para que Ana y Juan lleven juntos las tareas de la boda (30 de e
 | Lista | Tabla por grupo con filtros y descarga a CSV para Excel |
 | Cronograma | Tareas por mes hasta la boda |
 | Pagos | Valor total, abonado y saldo por proveedor |
+| Invitados | Confirmaciones (asisten / no / sin responder), envío por WhatsApp con mensaje listo, casilla "enviado" y recordatorios |
+| Canciones | Canciones sugeridas desde la invitación, agrupadas y descargables |
 
 Los cambios de una persona le aparecen a la otra en segundos, sin recargar.
 
@@ -32,6 +34,9 @@ Los cambios de una persona le aparecen a la otra en segundos, sin recargar.
 | `supabase/03_miembros.sql` | Autoriza los correos de Ana y Juan |
 | `supabase/04_checklist.sql` | Agrega el checklist de subactividades a cada tarea |
 | `supabase/05_adjuntos.sql` | Fotos y archivos por tarea: columna, carpeta privada y seguridad |
+| `supabase/06_pagos.sql` | Pagos por tarea |
+| `supabase/07_invitados.sql` | Invitados, confirmaciones y canciones: tablas, seguridad y funciones que usa la invitación |
+| `08_invitados_datos.sql` | **No está en GitHub** (tiene celulares): carga los 66 grupos; vive solo en la carpeta local `supabase/` |
 | `supabase/06_pagos.sql` | Registro de pagos (quién, cuándo, cuánto, medio, comprobante); el abonado se calcula solo |
 
 ## Puesta en marcha (una sola vez)

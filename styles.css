@@ -241,3 +241,22 @@ table.tabla { width: 100%; border-collapse: collapse; background: var(--papel); 
   .tabla .num { text-align: left; }                                         /* Números a la izquierda */
   .btn-flotante { padding: 12px 16px; }                                     /* Botón flotante más compacto */
 }
+
+/* ===== Invitados ===== */
+.inv-plazo { margin: 12px 0 4px; color: var(--tinta-suave); }               /* Días para el cierre */
+.inv-filtros { align-items: end; flex-wrap: wrap; }                          /* Filtros en una fila que se acomoda */
+.inv-filtros input { padding: 7px 10px; border: 1px solid var(--linea); border-radius: 8px; background: var(--papel); width: 100%; } /* Búsqueda */
+.inv-grupo { background: var(--papel); border: 1px solid var(--linea); border-left: 4px solid var(--linea); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; } /* Tarjeta de grupo */
+.inv-grupo.respondio { border-left-color: var(--salvia); }                  /* Respondió: verde */
+.inv-grupo.enviado { border-left-color: var(--ambar); }                     /* Enviado sin respuesta: ámbar */
+.inv-cabeza { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } /* Nombre y etiquetas */
+.inv-cabeza b { font-size: 16px; margin-right: 2px; }                       /* "Para" */
+.inv-envia { margin-left: auto; font-size: 12px; color: var(--tinta-suave); } /* Quién envía */
+.inv-personas { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 8px; font-size: 14px; color: var(--tinta-suave); } /* Personas */
+.inv-persona.si { color: var(--bosque); font-weight: 600; }                 /* Asiste */
+.inv-persona.no { color: var(--rojo); }                                     /* No asiste */
+.inv-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; } /* Botones */
+.inv-acciones a.btn { text-decoration: none; color: inherit; }              /* Enlace con aspecto de botón */
+.inv-acciones a.btn-primario { color: #fff; }                               /* Texto blanco en el principal */
+.inv-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; } /* Casilla de enviado */
+.inv-check input { width: 18px; height: 18px; accent-color: var(--bosque); } /* Casilla más grande */

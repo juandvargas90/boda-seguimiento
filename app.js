@@ -19,7 +19,9 @@
     editando: null,                                                   // Tarea abierta en el modal (null = nueva)
     api: null,                                                        // Capa de datos (demo o Supabase)
     cli: null,                                                        // Cliente de Supabase
-    usuario: null                                                     // Usuario con sesión iniciada
+    usuario: null,                                                    // Usuario con sesión iniciada
+    inv: { grupos: [], personas: [], canciones: [], error: null },    // Invitados, confirmaciones y canciones
+    finv: { envia: "", estado: "", texto: "" }                        // Filtros de la vista de invitados
   };                                                                  // Fin del estado
   const CAMPOS = ["codigo", "grupo", "categoria", "tarea", "responsable", "lider", "prioridad", "fecha_limite", "estado", // Campos editables…
     "proveedor", "valor_total", "fecha_proximo_pago", "proximo_paso", "depende_de", "observaciones", "checklist"]; // …que se envían a la base de datos
@@ -104,6 +106,25 @@
       try { localStorage.setItem(CLAVE + "-pagos", JSON.stringify(pagos)); localStorage.setItem(CLAVE, JSON.stringify(datos)); } catch (e) { /* sin almacenamiento */ } // Guarda
     };                                                                // Fin de recalcular
     const persistir = () => { try { localStorage.setItem(CLAVE, JSON.stringify(datos)); } catch (e) { /* sin almacenamiento */ } }; // Guarda si se puede
+    const invDemo = {                                                 // Invitados ficticios para probar la vista
+      grupos: [                                                       // Grupos (un mensaje cada uno)
+        { codigo: "demo01", para: "Ana y Juan", envia: "Juan", celular: "573000000000", orden: 0, es_prueba: true, enviado_en: null, respondido_en: null }, // Prueba
+        { codigo: "demo02", para: "Tía Luz y Pedro", envia: "Ana", celular: "573000000001", orden: 1, es_prueba: false, enviado_en: "2026-11-02T15:00:00Z", enviado_por: "demo", respondido_en: "2026-11-03T15:00:00Z" }, // Respondió
+        { codigo: "demo03", para: "Primo Andrés", envia: "Juan", celular: "573000000002", orden: 2, es_prueba: false, enviado_en: "2026-11-02T16:00:00Z", enviado_por: "demo", respondido_en: null }, // Enviado sin respuesta
+        { codigo: "demo04", para: "Familia Gómez", envia: "Ana", celular: "573000000003", orden: 3, es_prueba: false, enviado_en: null, respondido_en: null } // Sin enviar
+      ],                                                              // Fin de grupos
+      personas: [                                                     // Personas de cada grupo
+        { id: 1, codigo: "demo01", nombre: "Ana", orden: 0, asiste: null }, { id: 2, codigo: "demo01", nombre: "Juan", orden: 1, asiste: null }, // Prueba
+        { id: 3, codigo: "demo02", nombre: "Tía Luz", orden: 0, asiste: true }, { id: 4, codigo: "demo02", nombre: "Pedro", orden: 1, asiste: false }, // Respondió
+        { id: 5, codigo: "demo03", nombre: "Andrés", orden: 0, asiste: null }, // Sin respuesta
+        { id: 6, codigo: "demo04", nombre: "Marta", orden: 0, asiste: null }, { id: 7, codigo: "demo04", nombre: "Luis", orden: 1, asiste: null }, { id: 8, codigo: "demo04", nombre: "Sofía", orden: 2, asiste: null } // Sin enviar
+      ],                                                              // Fin de personas
+      canciones: [                                                    // Canciones sugeridas
+        { id: 1, codigo: "demo02", nombre: null, cancion: "Vivir mi vida", artista: "Marc Anthony", creado_en: "2026-11-03T15:05:00Z" }, // Con enlace
+        { id: 2, codigo: null, nombre: "Tía Rosa", cancion: "vivir mi vida", artista: "marc anthony", creado_en: "2026-11-04T10:00:00Z" }, // Repetida (otra escritura)
+        { id: 3, codigo: "demo02", nombre: null, cancion: "La bilirrubina", artista: null, creado_en: "2026-11-03T15:06:00Z" } // Sin artista
+      ]                                                               // Fin de canciones
+    };                                                                // Fin de invitados de demostración
     return {                                                          // Métodos de la capa
       async listar() { return datos.map((t) => ({ ...t })); },        // Devuelve copia de las tareas
       async historial() { return hist.slice(0, 30); },                // Devuelve los últimos 30 cambios
@@ -140,7 +161,10 @@
         recalcular();                                                 // Actualiza abonados
         return p;                                                     // Devuelve el pago
       },                                                              // Fin de guardarPago
-      async eliminarPago(p) { pagos = pagos.filter((x) => x.id !== p.id); recalcular(); } // Elimina y recalcula
+      async eliminarPago(p) { pagos = pagos.filter((x) => x.id !== p.id); recalcular(); }, // Elimina y recalcula
+      async listarInvitados() { return invDemo; },                   // Invitados de demostración
+      async marcarEnviado(codigo, enviado) { const g = invDemo.grupos.find((x) => x.codigo === codigo); g.enviado_en = enviado ? new Date().toISOString() : null; g.enviado_por = enviado ? "demo" : null; }, // Marca en memoria
+      escucharInvitados() { /* en demo no hay otros usuarios */ }    // Sin tiempo real
     };                                                                // Fin de métodos
   }                                                                   // Fin de apiDemo
 
@@ -244,7 +268,29 @@
           .on("postgres_changes", { event: "INSERT", schema: "public", table: "historial" }, alCambiar) // Nuevas entradas de historial
           .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, alCambiar) // Cualquier cambio en pagos
           .subscribe();                                               // Activa la suscripción
-      }                                                               // Fin de escuchar
+      },                                                              // Fin de escuchar
+      async listarInvitados() {                                       // Trae grupos, personas y canciones
+        const [g, p, c] = await Promise.all([                         // Tres consultas en paralelo
+          cli.from("inv_grupos").select("*").order("orden"),           // Grupos en el orden del Excel
+          cli.from("inv_personas").select("*").order("orden"),         // Personas
+          cli.from("inv_canciones").select("*").order("creado_en", { ascending: false }) // Canciones, más recientes primero
+        ]);                                                           // Fin de las consultas
+        const error = g.error || p.error || c.error;                  // Primer error, si hubo
+        if (error) throw error;                                       // Propaga el error
+        return { grupos: g.data, personas: p.data, canciones: c.data }; // Devuelve todo
+      },                                                              // Fin de listarInvitados
+      async marcarEnviado(codigo, enviado) {                          // Marca o desmarca un grupo como enviado
+        const datos = enviado ? { enviado_en: new Date().toISOString(), enviado_por: S.usuario ? S.usuario.email : null } : { enviado_en: null, enviado_por: null }; // Fecha y quién (o vacío)
+        const { error } = await cli.from("inv_grupos").update(datos).eq("codigo", codigo); // Guarda
+        if (error) throw error;                                       // Propaga el error
+      },                                                              // Fin de marcarEnviado
+      escucharInvitados(alCambiar) {                                  // Tiempo real de invitados (canal aparte: si las tablas aún no existen, no afecta las tareas)
+        cli.channel("cambios-invitados")                              // Canal propio
+          .on("postgres_changes", { event: "*", schema: "public", table: "inv_grupos" }, alCambiar)    // Enviados y respuestas
+          .on("postgres_changes", { event: "*", schema: "public", table: "inv_personas" }, alCambiar)  // Confirmaciones
+          .on("postgres_changes", { event: "*", schema: "public", table: "inv_canciones" }, alCambiar) // Canciones nuevas
+          .subscribe();                                               // Activa la suscripción
+      }                                                               // Fin de escucharInvitados
     };                                                                // Fin de métodos
   }                                                                   // Fin de apiSupabase
 
@@ -258,6 +304,11 @@
     } catch (e) {                                                     // Si falla
       aviso("No se pudo cargar: " + (e.message || e));                // Avisa
     }                                                                 // Fin del try
+    try {                                                             // Invitados por separado: si falla, las tareas igual se ven
+      S.inv = { ...(await S.api.listarInvitados()), error: null };    // Grupos, personas y canciones
+    } catch (e) {                                                     // Si las tablas aún no existen u otro error
+      S.inv = { grupos: [], personas: [], canciones: [], error: e.message || String(e) }; // Guarda el error para mostrarlo en la vista
+    }                                                                 // Fin del try de invitados
     render();                                                         // Redibuja
   }                                                                   // Fin de cargar
 
@@ -514,11 +565,122 @@
   }                                                                   // Fin de enlazarComprobantes
 
   // ---------- Dibujo general ----------
-  const VISTAS = { inicio: vistaInicio, tablero: vistaTablero, lista: vistaLista, cronograma: vistaCronograma, pagos: vistaPagos }; // Mapa vista → función
+  // ---------- Invitados ----------
+  const personasDe = (codigo) => S.inv.personas.filter((p) => p.codigo === codigo).sort((a, b) => a.orden - b.orden || a.id - b.id); // Personas de un grupo
+  const enlaceDe = (g) => `${C.INVITACION_URL}?i=${g.codigo}`;          // Enlace personal de la invitación
+  function estadoGrupo(g) {                                           // En qué va un grupo
+    if (g.respondido_en) return "respondio";                          // Ya confirmó (sí o no)
+    if (g.enviado_en) return "enviado";                               // Enviado, sin respuesta
+    return "pendiente";                                               // Aún no se envía
+  }                                                                   // Fin de estadoGrupo
+  function mensajeWhatsApp(g, recordatorio) {                         // Texto del mensaje (singular o plural)
+    const varios = personasDe(g.codigo).length > 1;                   // ¿Es para varias personas?
+    const enlace = enlaceDe(g);                                       // Enlace personal
+    if (recordatorio) return `¡Hola ${g.para}! 💛\n` +                // Saludo del recordatorio
+      `${varios ? "Les recordamos" : "Te recordamos"} que ${varios ? "tienen" : "tienes"} hasta el *viernes 4 de diciembre* para confirmar ${varios ? "su" : "tu"} asistencia a nuestro matrimonio.\n` + // Recordatorio
+      `${varios ? "Pueden" : "Puedes"} hacerlo aquí: ${enlace}\n¡Gracias!\nAna & Juan`; // Enlace y firma
+    return `¡Hola ${g.para}! 💛\n` +                                  // Saludo con el nombre del destinatario
+      `Con mucha alegría ${varios ? "queremos compartirles" : "queremos compartirte"} la invitación oficial a nuestro matrimonio, el *sábado 30 de enero de 2027*.\n` + // Invitación
+      `${varios ? "Ábranla" : "Ábrela"} aquí: ${enlace}\n` +            // Enlace
+      `Allí ${varios ? "pueden" : "puedes"} confirmar ${varios ? "su" : "tu"} asistencia antes del *4 de diciembre* y sugerirnos canciones para la fiesta. 🎶\n` + // Qué pueden hacer
+      `¡${varios ? "Los" : "Te"} esperamos!\nAna & Juan`;               // Despedida
+  }                                                                   // Fin de mensajeWhatsApp
+  const linkWhatsApp = (g, recordatorio) => `https://wa.me/${g.celular}?text=${encodeURIComponent(mensajeWhatsApp(g, recordatorio))}`; // Abre el chat con el mensaje escrito
+  function gruposFiltrados() {                                        // Grupos según los filtros de la vista
+    const q = S.finv.texto.trim().toLowerCase();                      // Texto buscado
+    return S.inv.grupos.filter((g) => (!S.finv.envia || g.envia === S.finv.envia) && // Quién envía
+      (!S.finv.estado || (S.finv.estado === "no-asisten" ? personasDe(g.codigo).some((p) => p.asiste === false) : estadoGrupo(g) === S.finv.estado)) && // Estado
+      (!q || (g.para + " " + personasDe(g.codigo).map((p) => p.nombre).join(" ")).toLowerCase().includes(q))); // Búsqueda por nombre
+  }                                                                   // Fin de gruposFiltrados
+  function htmlGrupos() {                                             // Lista de grupos (se redibuja sola al buscar)
+    const G = gruposFiltrados();                                      // Grupos visibles
+    if (!G.length) return `<p class="vacio">No hay grupos con estos filtros.</p>`; // Sin resultados
+    return G.map((g) => {                                             // Una tarjeta por grupo
+      const est = estadoGrupo(g);                                     // Estado del grupo
+      const chip = { respondio: `<span class="chip a-tiempo">Respondió</span>`, enviado: `<span class="chip proxima">Enviado · sin respuesta</span>`, pendiente: `<span class="chip">Sin enviar</span>` }[est]; // Etiqueta de estado
+      const personas = personasDe(g.codigo).map((p) => `<span class="inv-persona ${p.asiste === true ? "si" : p.asiste === false ? "no" : ""}">${p.asiste === true ? "✓" : p.asiste === false ? "✗" : "·"} ${esc(p.nombre)}</span>`).join(""); // Personas con su respuesta
+      const accion = est === "enviado"                                // Botón de WhatsApp según el estado
+        ? `<a class="btn" href="${esc(linkWhatsApp(g, true))}" target="_blank" rel="noopener" data-wa="${g.codigo}">⏰ Recordar por WhatsApp</a>` // Recordatorio
+        : `<a class="btn ${est === "pendiente" ? "btn-primario" : ""}" href="${esc(linkWhatsApp(g, false))}" target="_blank" rel="noopener" data-wa="${g.codigo}">💬 ${est === "pendiente" ? "Enviar" : "Reenviar"} por WhatsApp</a>`; // Envío
+      const marca = g.enviado_en ? `Enviado ${esc(hace(g.enviado_en))}${g.enviado_por ? " por " + esc(nombreDe(g.enviado_por) || g.enviado_por) : ""}` : "Marcar como enviado"; // Texto de la casilla
+      return `<div class="inv-grupo ${est}">` +                        // Tarjeta
+        `<div class="inv-cabeza"><b>${esc(g.para)}</b>${g.es_prueba ? `<span class="chip bloqueada">Prueba</span>` : ""}${chip}<span class="inv-envia">Envía ${esc(g.envia)}</span></div>` + // Nombre, estado y quién envía
+        `<div class="inv-personas">${personas}</div>` +              // Personas
+        `<div class="inv-acciones">${accion}` +                        // WhatsApp
+        `<label class="inv-check"><input type="checkbox" data-enviado="${g.codigo}" ${g.enviado_en ? "checked" : ""}> ${marca}</label>` + // Casilla de enviado
+        `<button class="btn-link" data-copiar-enlace="${g.codigo}" title="${esc(enlaceDe(g))}">Copiar enlace</button></div>` + // Copiar enlace
+        `</div>`;                                                     // Fin de la tarjeta
+    }).join("");                                                      // Une las tarjetas
+  }                                                                   // Fin de htmlGrupos
+  function vistaInvitados() {                                         // Resumen y envío de invitaciones
+    if (S.inv.error) return `<p class="vacio">Aún no están creadas las tablas de invitados en Supabase (ejecuta <b>07_invitados.sql</b> y <b>08_invitados_datos.sql</b>). Detalle: ${esc(S.inv.error)}</p>`; // Falta la base
+    const reales = S.inv.grupos.filter((g) => !g.es_prueba).map((g) => g.codigo); // Grupos reales (sin el de prueba)
+    const P = S.inv.personas.filter((p) => reales.includes(p.codigo)); // Personas reales
+    const si = P.filter((p) => p.asiste === true).length, no = P.filter((p) => p.asiste === false).length; // Asisten / no asisten
+    const enviados = S.inv.grupos.filter((g) => !g.es_prueba && g.enviado_en).length; // Grupos enviados
+    const faltanDias = dias(C.LIMITE_CONFIRMAR);                      // Días para el cierre
+    let h = `<div class="kpis">` +                                    // Indicadores
+      `<div class="kpi"><b>${P.length}</b><span>Invitados (${reales.length} mensajes)</span></div>` + // Total
+      `<div class="kpi ok"><b>${si}</b><span>Asisten</span></div>` +   // Sí
+      `<div class="kpi alerta"><b>${no}</b><span>No asisten</span></div>` + // No
+      `<div class="kpi proximo"><b>${P.length - si - no}</b><span>Sin responder</span></div>` + // Pendientes
+      `<div class="kpi"><b>${enviados}/${reales.length}</b><span>Mensajes enviados</span></div></div>`; // Envíos
+    h += `<p class="inv-plazo">${faltanDias > 0 ? `Faltan <b>${faltanDias} días</b> para el cierre de confirmaciones (4 de diciembre).` : faltanDias === 0 ? "<b>Hoy</b> cierran las confirmaciones." : "Las confirmaciones ya cerraron."}</p>`; // Plazo
+    h += `<div class="filtros-pagos inv-filtros">` +                  // Filtros
+      `<label class="filtro"><span>Envía</span><select id="fi-envia"><option value="">Ana y Juan</option>${["Ana", "Juan"].map((n) => `<option${S.finv.envia === n ? " selected" : ""}>${n}</option>`).join("")}</select></label>` + // Quién envía
+      `<label class="filtro"><span>Estado</span><select id="fi-estado">${[["", "Todos"], ["pendiente", "Sin enviar"], ["enviado", "Enviado · sin respuesta"], ["respondio", "Respondió"], ["no-asisten", "Con alguien que no asiste"]].map(([v, t]) => `<option value="${v}"${S.finv.estado === v ? " selected" : ""}>${t}</option>`).join("")}</select></label>` + // Estado
+      `<label class="filtro"><span>Buscar</span><input id="fi-texto" type="search" placeholder="Nombre…" value="${esc(S.finv.texto)}"></label>` + // Búsqueda
+      `<button class="btn" id="btn-csv-invitados">Descargar invitados (Excel)</button></div>`; // Descarga
+    h += `<div id="inv-lista">${htmlGrupos()}</div>`;                  // Lista de grupos
+    return h;                                                         // Devuelve el HTML
+  }                                                                   // Fin de vistaInvitados
+  const clave = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim(); // Texto comparable (sin tildes ni mayúsculas)
+  function cancionesAgrupadas() {                                     // Une canciones repetidas aunque estén escritas distinto
+    const mapa = new Map();                                           // clave → canción agrupada
+    S.inv.canciones.forEach((c) => {                                  // Cada sugerencia
+      const k = clave(c.cancion) + "|" + clave(c.artista);            // Misma canción y artista
+      const quien = c.codigo ? ((S.inv.grupos.find((g) => g.codigo === c.codigo) || {}).para || c.codigo) : (c.nombre || "Sin nombre"); // Quién la sugirió
+      if (!mapa.has(k)) mapa.set(k, { cancion: c.cancion, artista: c.artista, quienes: [], fecha: c.creado_en }); // Primera vez
+      const a = mapa.get(k); a.quienes.push(quien); if (c.creado_en > a.fecha) a.fecha = c.creado_en; // Suma quién y la fecha más reciente
+    });                                                               // Fin del recorrido
+    return [...mapa.values()].sort((x, y) => y.quienes.length - x.quienes.length || String(y.fecha).localeCompare(String(x.fecha))); // Más pedidas primero
+  }                                                                   // Fin de cancionesAgrupadas
+  function vistaCanciones() {                                         // Canciones sugeridas por los invitados
+    if (S.inv.error) return `<p class="vacio">Aún no están creadas las tablas de invitados en Supabase. Detalle: ${esc(S.inv.error)}</p>`; // Falta la base
+    const A = cancionesAgrupadas();                                   // Canciones agrupadas
+    let h = `<div class="kpis"><div class="kpi"><b>${S.inv.canciones.length}</b><span>Sugerencias</span></div>` + // Total de sugerencias
+      `<div class="kpi ok"><b>${A.length}</b><span>Canciones distintas</span></div></div>`; // Distintas
+    h += `<div class="acciones-pagos"><button class="btn" id="btn-csv-canciones">Descargar canciones (Excel)</button></div>`; // Descarga
+    h += A.length ? `<table class="tabla tabla-canciones"><thead><tr><th>Canción</th><th>Artista</th><th>Sugerida por</th><th>Última vez</th></tr></thead><tbody>` + // Encabezados
+      A.map((c) => `<tr><td><b>${esc(c.cancion)}</b>${c.quienes.length > 1 ? ` <span class="chip a-tiempo">×${c.quienes.length}</span>` : ""}</td>` + // Canción y veces
+        `<td data-l="Artista">${esc(c.artista || "—")}</td><td data-l="Sugerida por">${esc(c.quienes.join(", "))}</td><td data-l="Última vez">${esc(hace(c.fecha))}</td></tr>`).join("") + // Artista, quién y cuándo
+      `</tbody></table>` : `<p class="vacio">Aún no hay canciones sugeridas.</p>`; // Sin canciones
+    return h;                                                         // Devuelve el HTML
+  }                                                                   // Fin de vistaCanciones
+  function descargarArchivo(nombre, filas) {                          // Descarga filas como CSV para Excel
+    const celda = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;  // Encierra en comillas y escapa comillas
+    const blob = new Blob(["﻿" + filas.map((f) => f.map(celda).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }); // BOM para tildes en Excel
+    const a = document.createElement("a");                            // Enlace temporal
+    a.href = URL.createObjectURL(blob);                               // Apunta al archivo
+    a.download = `${nombre}_${new Date().toISOString().slice(0, 10)}.csv`; // Nombre con fecha
+    a.click();                                                        // Descarga
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);              // Libera memoria
+  }                                                                   // Fin de descargarArchivo
+  function descargarCSVInvitados() {                                  // Una fila por persona
+    const filas = [["para", "persona", "respuesta", "envia", "estado", "enviado", "respondido", "enlace"]]; // Encabezado
+    gruposFiltrados().forEach((g) => personasDe(g.codigo).forEach((p) => filas.push([g.para, p.nombre, p.asiste === true ? "Asiste" : p.asiste === false ? "No asiste" : "Sin responder", g.envia, estadoGrupo(g), g.enviado_en ? g.enviado_en.slice(0, 10) : "", g.respondido_en ? g.respondido_en.slice(0, 10) : "", enlaceDe(g)]))); // Filas
+    descargarArchivo("boda_invitados", filas);                       // Descarga
+  }                                                                   // Fin de descargarCSVInvitados
+  function descargarCSVCanciones() {                                  // Una fila por canción distinta
+    descargarArchivo("boda_canciones", [["cancion", "artista", "veces", "sugerida_por"]].concat(cancionesAgrupadas().map((c) => [c.cancion, c.artista, c.quienes.length, c.quienes.join(", ")]))); // Descarga
+  }                                                                   // Fin de descargarCSVCanciones
+
+  const VISTAS = { inicio: vistaInicio, tablero: vistaTablero, lista: vistaLista, cronograma: vistaCronograma, pagos: vistaPagos, invitados: vistaInvitados, canciones: vistaCanciones }; // Mapa vista → función
   function render() {                                                 // Redibuja la vista activa
     const d = dias(C.FECHA_BODA);                                     // Días a la boda
     $("#dias-faltan").textContent = d > 0 ? d : (d === 0 ? "¡Hoy!" : "💍"); // Contador
     $("#filtros").hidden = !["tablero", "lista", "cronograma"].includes(S.vista); // Filtros solo en estas vistas
+    $("#btn-nueva").hidden = ["invitados", "canciones"].includes(S.vista); // Sin "Nueva tarea" en invitados y canciones
     $("#lista-categorias").innerHTML = [...new Set(S.tareas.map((t) => t.categoria).filter(Boolean))].sort().map((c) => `<option value="${esc(c)}">`).join(""); // Sugerencias de categoría
     $("#vista").innerHTML = VISTAS[S.vista]();                        // Dibuja la vista
     if (S.vista === "pagos") enlazarComprobantes($("#vista"));        // Enlaces a comprobantes de pago
@@ -880,6 +1042,12 @@
     if (ev.target.closest("#btn-csv")) return descargarCSV();         // Botón de CSV
     if (ev.target.closest("#btn-nuevo-pago")) return abrirPago(null, null); // Registrar pago desde la pestaña Pagos
     if (ev.target.closest("#btn-csv-pagos")) return descargarCSVPagos(); // Descargar pagos
+    if (ev.target.closest("#btn-csv-invitados")) return descargarCSVInvitados(); // Descargar invitados
+    if (ev.target.closest("#btn-csv-canciones")) return descargarCSVCanciones(); // Descargar canciones
+    if (ev.target.closest("[data-wa]")) { aviso("Cuando envíes el mensaje en WhatsApp, marca la casilla de enviado"); return; } // El enlace abre WhatsApp solo
+    const cop = ev.target.closest("[data-copiar-enlace]");            // Copiar enlace de un grupo
+    if (cop) { const g = S.inv.grupos.find((x) => x.codigo === cop.dataset.copiarEnlace); navigator.clipboard.writeText(enlaceDe(g)).then(() => aviso("Enlace copiado"), () => aviso(enlaceDe(g))); return; } // Copia (o lo muestra si no se puede)
+    if (ev.target.closest(".inv-check")) return;                      // La casilla se maneja en "change"
     const comp = ev.target.closest("[data-comprobante]");             // Enlace a un comprobante
     if (comp) { if (comp.getAttribute("href") === "#") { ev.preventDefault(); aviso("Cargando el comprobante, intenta de nuevo en un momento"); } return; } // Deja abrir el enlace (o avisa si aún no está listo)
     const fp = ev.target.closest("[data-filtrar-pagador]");           // Persona en "Quién ha pagado"
@@ -895,7 +1063,21 @@
     if (ev.target.dataset.mover) cambiarEstado(ev.target.dataset.mover, ev.target.value); // Selector de estado (celular)
     if (ev.target.id === "fp-pagador") { S.fpagos.pagador = ev.target.value; render(); } // Filtro de movimientos por persona
     if (ev.target.id === "fp-mes") { S.fpagos.mes = ev.target.value; render(); } // Filtro de movimientos por mes
+    if (ev.target.id === "fi-envia") { S.finv.envia = ev.target.value; render(); } // Filtro de invitados por quién envía
+    if (ev.target.id === "fi-estado") { S.finv.estado = ev.target.value; render(); } // Filtro de invitados por estado
+    if (ev.target.dataset.enviado) {                                  // Casilla "enviado"
+      const casilla = ev.target, codigo = casilla.dataset.enviado;   // Casilla y grupo
+      casilla.disabled = true;                                        // Evita doble clic
+      S.api.marcarEnviado(codigo, casilla.checked)                    // Guarda en la base
+        .then(() => { aviso(casilla.checked ? "Marcado como enviado" : "Desmarcado"); return cargar(); }) // Confirma y recarga
+        .catch((e) => { casilla.checked = !casilla.checked; casilla.disabled = false; aviso("No se pudo guardar: " + (e.message || e)); }); // Revierte si falla
+    }                                                                 // Fin de la casilla
   });                                                                 // Fin de cambios
+  vista.addEventListener("input", (ev) => {                           // Escritura en la vista
+    if (ev.target.id !== "fi-texto") return;                          // Solo la búsqueda de invitados
+    S.finv.texto = ev.target.value;                                   // Guarda el texto
+    $("#inv-lista").innerHTML = htmlGrupos();                         // Redibuja solo la lista (no pierde el cursor)
+  });                                                                 // Fin de escritura
   vista.addEventListener("dragstart", (ev) => {                       // Empieza a arrastrar una tarjeta
     const t = ev.target.closest(".tarjeta");                          // Tarjeta arrastrada
     if (!t) return;                                                   // Solo tarjetas
@@ -965,6 +1147,7 @@
     S.miembros = data;                                                // Guarda miembros
     await mostrarApp();                                               // Entra
     S.api.escuchar(programarRecarga);                                 // Escucha cambios en tiempo real
+    S.api.escucharInvitados(programarRecarga);                        // Y los de invitados (canal aparte)
     setInterval(() => { if (document.visibilityState === "visible") cargar(); }, 60000); // Respaldo: recarga cada minuto
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") cargar(); }); // Al volver a la página (p. ej. desbloquear el celular), recarga al instante
   }                                                                   // Fin de entrar
