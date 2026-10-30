@@ -612,7 +612,7 @@
         `<div class="inv-personas">${personas}</div>` +              // Personas
         `<div class="inv-acciones">${accion}` +                        // WhatsApp
         `<label class="inv-check"><input type="checkbox" data-enviado="${g.codigo}" ${g.enviado_en ? "checked" : ""}> ${marca}</label>` + // Casilla de enviado
-        `<button class="btn-link" data-copiar-enlace="${g.codigo}" title="${esc(enlaceDe(g))}">Copiar enlace</button></div>` + // Copiar enlace
+        `<button class="btn-link" data-copiar-mensaje="${g.codigo}" title="Copia el mensaje completo para pegarlo donde quieras">${est === "enviado" ? "Copiar recordatorio" : "Copiar mensaje"}</button></div>` + // Copiar el mensaje que corresponde
         `</div>`;                                                     // Fin de la tarjeta
     }).join("");                                                      // Une las tarjetas
   }                                                                   // Fin de htmlGrupos
@@ -1049,8 +1049,23 @@
     if (ev.target.closest("#btn-csv-invitados")) return descargarCSVInvitados(); // Descargar invitados
     if (ev.target.closest("#btn-csv-canciones")) return descargarCSVCanciones(); // Descargar canciones
     if (ev.target.closest("[data-wa]")) { aviso("Cuando envíes el mensaje en WhatsApp, marca la casilla de enviado"); return; } // El enlace abre WhatsApp solo
-    const cop = ev.target.closest("[data-copiar-enlace]");            // Copiar enlace de un grupo
-    if (cop) { const g = S.inv.grupos.find((x) => x.codigo === cop.dataset.copiarEnlace); navigator.clipboard.writeText(enlaceDe(g)).then(() => aviso("Enlace copiado"), () => aviso(enlaceDe(g))); return; } // Copia (o lo muestra si no se puede)
+    const cop = ev.target.closest("[data-copiar-mensaje]");           // Copiar el mensaje completo de un grupo
+    if (cop) {                                                        // Si se tocó "Copiar mensaje" o "Copiar recordatorio"
+      const g = S.inv.grupos.find((x) => x.codigo === cop.dataset.copiarMensaje); // Grupo
+      const recordatorio = estadoGrupo(g) === "enviado";              // Ya enviado y sin respuesta → recordatorio
+      const texto = mensajeWhatsApp(g, recordatorio);                 // Mensaje completo con su enlace
+      const listo = () => aviso(recordatorio ? "Recordatorio copiado" : "Mensaje copiado"); // Confirmación
+      const respaldo = () => {                                        // Si el navegador no deja usar el portapapeles moderno
+        const t = document.createElement("textarea");                 // Caja de texto temporal
+        t.value = texto; t.style.position = "fixed"; t.style.opacity = "0"; // Fuera de la vista
+        document.body.appendChild(t); t.select();                     // La agrega y selecciona el texto
+        const ok = document.execCommand("copy");                      // Copia a la antigua
+        t.remove();                                                   // Limpia
+        ok ? listo() : aviso("No se pudo copiar en este navegador");  // Resultado
+      };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(texto).then(listo, respaldo); else respaldo(); // Copia
+      return;                                                         // Fin
+    }
     if (ev.target.closest(".inv-check")) return;                      // La casilla se maneja en "change"
     const comp = ev.target.closest("[data-comprobante]");             // Enlace a un comprobante
     if (comp) { if (comp.getAttribute("href") === "#") { ev.preventDefault(); aviso("Cargando el comprobante, intenta de nuevo en un momento"); } return; } // Deja abrir el enlace (o avisa si aún no está listo)
