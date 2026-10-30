@@ -573,6 +573,7 @@
     if (g.enviado_en) return "enviado";                               // Enviado, sin respuesta
     return "pendiente";                                               // Aún no se envía
   }                                                                   // Fin de estadoGrupo
+  const hoyBogota = () => new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10); // Fecha de hoy en Bogotá (UTC-5, sin horario de verano)
   function mensajeWhatsApp(g, recordatorio) {                         // Texto del mensaje (singular o plural)
     const varios = personasDe(g.codigo).length > 1;                   // ¿Es para varias personas?
     const enlace = enlaceDe(g);                                       // Enlace personal
@@ -583,7 +584,9 @@
     return `¡Hola ${g.para}! 💌\n\n` +                                // Saludo con el nombre del destinatario
       `*¡Nos casamos!* 💍🤍\n\n` +                                     // La noticia
       `Con muchísima ilusión queremos compartir ${varios ? "con ustedes" : "contigo"} la invitación a uno de los días más felices de nuestras vidas.\n\n` + // Invitación
-      `✨ *Sábado 30 de enero de 2027* ✨\n\n` +                       // Fecha
+      `✨ *Sábado 30 de enero de 2027* ✨\n` +                         // Fecha
+      (hoyBogota() === "2026-10-30" ? `*¡Hoy faltan exactamente 3 meses!* ⏳\n` : "") + // Solo el día que faltan 3 meses exactos
+      `\n` +                                                           // Espacio antes del siguiente párrafo
       `Nos haría muy ${varios ? "felices que nos acompañaran" : "feliz que nos acompañaras"}.\n\n` + // Deseo
       `🌸 ${varios ? "Abran aquí su" : "Abre aquí tu"} invitación:\n${enlace}\n\n` + // Enlace
       `¡Estamos contando los días para celebrar juntos! 🥂\n\n` +     // Cierre
