@@ -576,16 +576,20 @@
   function mensajeWhatsApp(g, recordatorio) {                         // Texto del mensaje (singular o plural)
     const varios = personasDe(g.codigo).length > 1;                   // ¿Es para varias personas?
     const enlace = enlaceDe(g);                                       // Enlace personal
-    if (recordatorio) return `¡Hola ${g.para}! 💛\n` +                // Saludo del recordatorio
-      `${varios ? "Les recordamos" : "Te recordamos"} que ${varios ? "tienen" : "tienes"} hasta el *viernes 4 de diciembre* para confirmar ${varios ? "su" : "tu"} asistencia a nuestro matrimonio.\n` + // Recordatorio
-      `${varios ? "Pueden" : "Puedes"} hacerlo aquí: ${enlace}\n¡Gracias!\nAna & Juan`; // Enlace y firma
-    return `¡Hola ${g.para}! 💛\n` +                                  // Saludo con el nombre del destinatario
-      `Con mucha alegría ${varios ? "queremos compartirles" : "queremos compartirte"} la invitación oficial a nuestro matrimonio, el *sábado 30 de enero de 2027*.\n` + // Invitación
-      `${varios ? "Ábranla" : "Ábrela"} aquí: ${enlace}\n` +            // Enlace
-      `Allí ${varios ? "pueden" : "puedes"} confirmar ${varios ? "su" : "tu"} asistencia antes del *4 de diciembre* y sugerirnos canciones para la fiesta. 🎶\n` + // Qué pueden hacer
-      `¡${varios ? "Los" : "Te"} esperamos!\nAna & Juan`;               // Despedida
+    if (recordatorio) return `¡Hola ${g.para}! 🤍\n\n` +              // Saludo del recordatorio
+      `Con mucho cariño ${varios ? "les" : "te"} recordamos que ${varios ? "pueden" : "puedes"} confirmar ${varios ? "su" : "tu"} asistencia a nuestro matrimonio hasta el *viernes 4 de diciembre*.\n\n` + // Recordatorio con la fecha límite
+      `🌸 ${varios ? "Su" : "Tu"} invitación:\n${enlace}\n\n` +      // Enlace
+      `¡Gracias!\nAna & Juan 🤍`;                                      // Firma
+    return `¡Hola ${g.para}! 💌\n\n` +                                // Saludo con el nombre del destinatario
+      `*¡Nos casamos!* 💍🤍\n\n` +                                     // La noticia
+      `Con muchísima ilusión queremos compartir ${varios ? "con ustedes" : "contigo"} la invitación a uno de los días más felices de nuestras vidas.\n\n` + // Invitación
+      `✨ *Sábado 30 de enero de 2027* ✨\n\n` +                       // Fecha
+      `Nos haría muy ${varios ? "felices que nos acompañaran" : "feliz que nos acompañaras"}.\n\n` + // Deseo
+      `🌸 ${varios ? "Abran aquí su" : "Abre aquí tu"} invitación:\n${enlace}\n\n` + // Enlace
+      `¡Estamos contando los días para celebrar juntos! 🥂\n\n` +     // Cierre
+      `Con mucho cariño,\nAna & Juan 🤍`;                              // Firma
   }                                                                   // Fin de mensajeWhatsApp
-  const linkWhatsApp = (g, recordatorio) => `https://wa.me/${g.celular}?text=${encodeURIComponent(mensajeWhatsApp(g, recordatorio))}`; // Abre el chat con el mensaje escrito
+  const linkWhatsApp = (g, recordatorio) => `https://api.whatsapp.com/send?phone=${g.celular}&text=${encodeURIComponent(mensajeWhatsApp(g, recordatorio))}`; // Abre el chat con el mensaje escrito (esta dirección conserva mejor los emojis)
   function gruposFiltrados() {                                        // Grupos según los filtros de la vista
     const q = S.finv.texto.trim().toLowerCase();                      // Texto buscado
     return S.inv.grupos.filter((g) => (!S.finv.envia || g.envia === S.finv.envia) && // Quién envía
